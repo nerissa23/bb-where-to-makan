@@ -17,7 +17,7 @@ Deciding where to eat as a group is painful. One person is halal-only, another i
 ## Tech stack
 | Layer | Technology |
 |---|---|
-| Frontend | React + Vite |
+| Frontend | NextJS + TailwindCSS |
 | Backend | Python 3.14 + FastAPI |
 | AI | Gemini/Ollama models |
 | Data | Google Places API + JAKIM halal dataset |
