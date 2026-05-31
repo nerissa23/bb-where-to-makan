@@ -31,8 +31,8 @@ Deciding where to eat as a group is painful. One person is halal-only, another i
 ```
 bb-where-to-makan/
 ├── backend/
-│   ├── app/
-│   │   ├── main.py                   # FastAPI entry point
+│   ├── src/
+│   │   ├── app.py                   # FastAPI entry point
 │   │   ├── routers/
 │   │   │   ├── groups.py             # POST /groups, GET /groups/{id}
 │   │   │   └── recommendations.py   # POST /groups/{id}/recommend
@@ -45,18 +45,36 @@ bb-where-to-makan/
 │   │   │   └── recommendation.py    # RecommendationResult schema
 │   │   └── db/
 │   │       └── database.py           # SQLAlchemy + SQLite setup
+│   ├── .dockerignore
+│   ├── .python-version
+│   ├── Dockerfile
 │   ├── pyproject.toml
-│   └── Dockerfile
+│   └── uv.lock
 ├── frontend/
+│   ├── public/
+│   │   └── favicon.ico
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── GroupSetup.jsx        # Step 1 — group name
-│   │   │   ├── PreferenceForm.jsx    # Step 2 — members + restrictions
-│   │   │   ├── CravingInput.jsx      # Step 3 — craving + location
-│   │   │   └── ResultsCard.jsx       # Recommendation display
-│   │   ├── App.jsx
-│   │   └── main.jsx
+│   │   ├── app/                          ← Next.js routing (pages only)
+│   │   │   ├── layout.tsx                ← root layout (keep as is)
+│   │   │   ├── page.tsx                  ← homepage → your step 1 entry point
+│   │   │   ├── globals.css
+│   │   │   └── group/
+│   │   │       └── [id]/
+│   │   │           └── page.tsx          ← results page for a specific group
+│   │   ├── components/                   ← all your UI components live here
+│   │   │   ├── GroupSetup.tsx
+│   │   │   ├── PreferenceForm.tsx
+│   │   │   ├── CravingInput.tsx
+│   │   │   └── ResultsCard.tsx
+│   │   └── lib/                          ← utilities and API calls
+│   │       ├── api.ts                    ← all fetch calls to FastAPI backend
+│   │       └── types.ts                  ← shared TypeScript types
+│   ├── next.config.ts
+│   ├── tsconfig.json
 │   ├── package.json
+│   ├── postcss.config.mjs
+│   ├── eslint.config.mjs
+│   ├── .dockerignore
 │   └── Dockerfile
 ├── docker-compose.yml
 ├── .env.example                      # Committed — placeholder keys only
