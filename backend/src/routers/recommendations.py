@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from backend.src.db.database import SessionLocal
 from backend.src.models.group import Group as GroupModel
+from backend.src.models.recommendation import RecommendationSession
 from backend.src.models.schemas import CravingData, Recommendation
 from backend.src.services import places, ai, cache
 from typing import List
@@ -81,4 +82,18 @@ async def recommend(group_id: str, cravings: CravingData) -> dict:
     # sort by fitScore descending
     recs_sorted = sorted(recs, key=lambda r: r["fitScore"], reverse=True)
     cache.set_cached(cache_key, recs_sorted)
+
+    db = SessionLocal()
+    try:
+        session_row = RecommendationSession(
+            group_id=group_id,
+            cravings=cravings.dict(),
+            results=recs_sorted,
+            status="ready",
+        )
+        db.add(session_row)
+        db.commit()
+    finally:
+        db.close()
+
     return {"recommendations": recs_sorted}

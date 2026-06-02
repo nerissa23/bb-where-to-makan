@@ -18,13 +18,21 @@
     sqlite3.connect('./backend/db/bb.db').execute('SELECT sqlite_version()').close()
     print('OK')
     PY
-- **Postgres (production / multi-service):**
-  - Create DB/user (psql):
-    psql -U postgres -c "CREATE USER bb_user WITH PASSWORD 'strongpassword'; CREATE DATABASE bb_db OWNER bb_user;"
-  - Example URL: `DATABASE_URL=postgresql+asyncpg://bb_user:strongpassword@db:5432/bb_db`
+- **Neon / Postgres (production):**
+  - Create a Neon project in the Neon console.
+  - Open the project, create or select a database, then copy the connection string.
+  - Use the direct SQLAlchemy URL with the psycopg driver, for example:
+    `DATABASE_URL=postgresql+psycopg://USER:PASSWORD@ep-xxxxx.neon.tech/DBNAME?sslmode=require`
+  - If Neon gives you a URL without a driver, use `postgresql+psycopg://` in front of the same host/user/password/database values.
   - Quick check:
-    psql "postgresql://bb_user:strongpassword@localhost:5432/bb_db" -c '\l'
-- **Pick the format that matches your SQLAlchemy/async driver.**
+    python - <<PY
+    import os
+    from sqlalchemy import create_engine, text
+    engine = create_engine(os.environ['DATABASE_URL'], pool_pre_ping=True)
+    with engine.connect() as conn:
+        print(conn.execute(text('select version()')).scalar())
+    PY
+- **Pick the URL that matches your backend driver.**
 
 **Redis URL**
 - **Local dev (no auth):** `REDIS_URL=redis://localhost:6379/0`
