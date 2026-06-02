@@ -3,6 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.src.routers import groups, recommendations
+
 app = FastAPI()
 
 origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -14,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(groups.router)
+app.include_router(recommendations.router)
 
 
 @app.get("/health")
