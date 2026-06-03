@@ -92,7 +92,7 @@ class PlacesService:
     def _fetch(self, lat: float, lng: float, radius: int) -> list[dict]:
         seen, results = set(), []
 
-        for place_type in ["restaurant", "cafe", "meal_takeaway", "food"]:
+        for place_type in ["restaurant", "cafe", "meal_takeaway"]:
             resp = self.client.places_nearby(
                 location=(lat, lng),
                 radius=radius,
@@ -107,12 +107,31 @@ class PlacesService:
 
     # ── Normalise ──────────────────────────────────────────────────────────
 
+    # places that may carry a secondary "cafe" or "restaurant" tag but are not dining venues
+    NON_RESTAURANT_PRIMARY_TYPES = {
+        "gas_station",
+        "convenience_store",
+        "supermarket",
+        "grocery_or_supermarket",
+        "pharmacy",
+        "hardware_store",
+        "clothing_store",
+        "department_store",
+        "shopping_mall",
+        "lodging",
+        "hospital",
+        "bicycle_store"
+    }
+
     def _normalise(self, raw: dict, olat: float, olng: float) -> Restaurant:
         loc = raw["geometry"]["location"]
         name = raw.get("name", "Unknown")
         gtypes = raw.get("types", [])
 
-        # Skip if primarily a hotel/lodging with no food focus
+        # reject venues primarily classified as non-restaurant even if they carry a cafe/restaurant tag
+        if any(t in self.NON_RESTAURANT_PRIMARY_TYPES for t in gtypes):
+            return None
+
         food_types = {
             "restaurant",
             "cafe",
@@ -165,7 +184,7 @@ class PlacesService:
         for r in restaurants:
             if not _fits_budget(r.price_level, budget_ceiling_rm):
                 continue
-            if halal_required and r.halal_status in (HalalStatus.UNLIKELY, HalalStatus.UNKNOWN):
+            if halal_required and r.halal_status == HalalStatus.UNLIKELY:
                 continue
             if vegetarian_required and r.vegetarian_status == VegetarianStatus.UNFRIENDLY:
                 continue
@@ -187,6 +206,7 @@ class PlacesService:
         cached = self._get_cache(cache_key)
 
         if cached:
+            print("🔃 Fetching from cache...")
             return self._filter(
                 cached,
                 request.budget_ceiling_rm,
@@ -194,6 +214,7 @@ class PlacesService:
                 vegetarian_required,
             )
 
+        print("🔍 Fetching from Places API...")
         lat, lng = self._geocode(request.location)
         raw = self._fetch(lat, lng, request.radius_metres)
         logger.info(f"Places API returned {len(raw)} raw results")

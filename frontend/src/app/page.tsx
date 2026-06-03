@@ -12,9 +12,9 @@ import { createGroup, getRecommendations } from "@/lib/api"
 const steps = ["Group", "Members", "Cravings", "Results"]
 
 const DIETARY_MAP: Record<string, string> = {
-  Halal: "halal",
-  Vegetarian: "vegetarian",
-  Vegan: "vegan",
+  "Halal": "halal",
+  "Vegetarian": "vegetarian",
+  "Vegan": "vegan",
   "No Pork": "no_pork",
   "No Seafood": "no_seafood",
 }
@@ -77,7 +77,7 @@ export default function WhereToMakan() {
             (r.halal_status === "unlikely" || r.halal_status === "unknown")
           ) {
             const names = halalMembers.map((m) => m.name).join(", ")
-            conflicts.push(`Halal unverified — may not suit ${names}`)
+            conflicts.push(`Restaurant is not halal verified — please check manually for ${names}`)
           }
           if (
             vegMembers.length > 0 &&
