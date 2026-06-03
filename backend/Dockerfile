@@ -22,6 +22,7 @@ RUN uv sync --frozen --no-dev
 
 # 3. copy entire application code
 COPY src/ ./src/
+COPY data/ ./data/
 
 # 4. by default runs: uv run uvicorn --app-dir src --host 0.0.0.0 app:app
 # can customise CMD by running `docker run <app-name> <new-CMD>`
