@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,10 +29,13 @@ export interface Recommendation {
   cuisine: string
   priceRange: string
   distance: string
-  fitScore: number
-  reasoning: string
+  halal_status?: "confirmed" | "likely" | "unlikely" | "unknown"
+  vegetarian_status?: "friendly" | "unfriendly" | "unknown"
+  fitScore: number | null
+  reasoning: string | null
   conflicts: string[]
   votes?: number
+  isAlternative?: boolean
   memberFit?: { name: string; satisfied: boolean; note?: string }[]
 }
 
@@ -65,6 +68,10 @@ export function ResultsDisplay({
   const [distanceFilter, setDistanceFilter] = useState([5])
   const [showAlternatives, setShowAlternatives] = useState(false)
 
+  useEffect(() => {
+    setRecommendations(initialRecommendations)
+  }, [initialRecommendations])
+
   const handleVote = (id: string) => {
     if (votedItems.has(id)) {
       setVotedItems((prev) => {
@@ -83,31 +90,6 @@ export function ResultsDisplay({
     return (rec.votes || 0) + (votes[rec.id] || 0)
   }
 
-  const alternativeRestaurants: Recommendation[] = [
-    {
-      id: "alt-1",
-      name: "Village Park Restaurant",
-      cuisine: "Malaysian",
-      priceRange: "RM12-20",
-      distance: "3.5 km",
-      fitScore: 7,
-      reasoning:
-        "Famous for nasi lemak. Slightly further but worth the drive for authentic flavors. Halal-certified.",
-      conflicts: ["Further from your location"],
-    },
-    {
-      id: "alt-2",
-      name: "Baba Low's",
-      cuisine: "Chinese-Malaysian",
-      priceRange: "RM20-35",
-      distance: "4.2 km",
-      fitScore: 6,
-      reasoning:
-        "Great Nyonya cuisine option if you expand your search radius. Good for sharing dishes.",
-      conflicts: ["Outside initial search area", "May not suit all dietary needs"],
-    },
-  ]
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -117,7 +99,7 @@ export function ResultsDisplay({
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-foreground">Finding the perfect spot...</h2>
-            <p className="text-muted-foreground">Our AI is analyzing restaurants for {groupName}</p>
+            <p className="text-muted-foreground">Searching restaurants for {groupName}</p>
           </div>
           <div className="max-w-xs mx-auto space-y-2">
             <Progress value={66} className="h-2" />
@@ -129,6 +111,8 @@ export function ResultsDisplay({
   }
 
   const sortedRecommendations = [...recommendations].sort((a, b) => getVoteCount(b) - getVoteCount(a))
+  const topPicks = sortedRecommendations.filter((r) => !r.isAlternative)
+  const alternatives = sortedRecommendations.filter((r) => r.isAlternative)
 
   return (
     <div className="space-y-6">
@@ -137,7 +121,7 @@ export function ResultsDisplay({
           <Star className="w-6 h-6 text-primary" />
         </div>
         <h2 className="text-2xl font-bold text-foreground">Top Picks for {groupName}</h2>
-        <p className="text-muted-foreground">AI-powered recommendations based on {participantCount} members&apos; preferences</p>
+        <p className="text-muted-foreground">Recommendations based on {participantCount} members&apos; preferences</p>
       </div>
 
       <Card className="bg-muted/30 border-dashed">
@@ -206,7 +190,7 @@ export function ResultsDisplay({
       )}
 
       <div className="space-y-4">
-        {sortedRecommendations.map((rec, index) => (
+        {topPicks.map((rec, index) => (
           <Card key={rec.id} className={`overflow-hidden transition-all hover:shadow-md ${index === 0 ? "border-primary border-2" : ""}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
@@ -223,24 +207,43 @@ export function ResultsDisplay({
                     </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-2xl font-bold text-primary">{rec.fitScore}</div>
-                  <div className="text-xs text-muted-foreground">Fit Score</div>
-                </div>
+                {rec.fitScore !== null && (
+                  <div className="text-right shrink-0">
+                    <div className="text-2xl font-bold text-primary">{rec.fitScore}</div>
+                    <div className="text-xs text-muted-foreground">Fit Score</div>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="bg-muted/50 rounded-lg p-3">
-                <p className="text-sm text-foreground leading-relaxed">{rec.reasoning}</p>
-              </div>
+              {rec.reasoning !== null && (
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm text-foreground leading-relaxed">{rec.reasoning}</p>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 {members.map((member) => {
-                  const hasDietaryConflict = rec.conflicts.some((c) => c.toLowerCase().includes(member.name.toLowerCase())) || (member.dietaryRestrictions.includes("Vegetarian") && !rec.reasoning.toLowerCase().includes("vegetarian"))
+                  const needsHalal = member.dietaryRestrictions.includes("Halal")
+                  const needsVeg =
+                    member.dietaryRestrictions.includes("Vegetarian") ||
+                    member.dietaryRestrictions.includes("Vegan")
+                  const halalConflict =
+                    needsHalal &&
+                    (rec.halal_status === "unlikely" || rec.halal_status === "unknown")
+                  const vegConflict =
+                    needsVeg && rec.vegetarian_status === "unfriendly"
+                  const hasDietaryConflict = halalConflict || vegConflict
+                  const conflictReason = halalConflict
+                    ? rec.halal_status === "unlikely" ? "not halal" : "halal unverified"
+                    : vegConflict
+                    ? "no veg options"
+                    : null
                   return (
                     <Badge key={member.name} variant={hasDietaryConflict ? "destructive" : "secondary"} className="text-xs">
                       {hasDietaryConflict ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
                       {member.name}
+                      {conflictReason && <span className="ml-1 opacity-80">({conflictReason})</span>}
                     </Badge>
                   )
                 })}
@@ -257,7 +260,7 @@ export function ResultsDisplay({
               )}
 
               <div className="flex items-center justify-between">
-                <Progress value={rec.fitScore * 10} className="h-2 flex-1 mr-4" />
+                <Progress value={(rec.fitScore ?? 0) * 10} className="h-2 flex-1 mr-4" />
                 {showVoting && (
                   <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => handleVote(rec.id)}>
                     <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
@@ -270,50 +273,50 @@ export function ResultsDisplay({
         ))}
       </div>
 
-      <div className="space-y-3">
-        <Button variant="ghost" size="sm" onClick={() => setShowAlternatives(!showAlternatives)} className="w-full justify-between text-muted-foreground hover:text-foreground">
-          <span className="flex items-center gap-2">
-            <Compass className="w-4 h-4" />
-            {showAlternatives ? "Hide" : "Show"} Nearby Alternatives
-          </span>
-          {showAlternatives ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </Button>
+      {alternatives.length > 0 && (
+        <div className="space-y-3">
+          <Button variant="ghost" size="sm" onClick={() => setShowAlternatives(!showAlternatives)} className="w-full justify-between text-muted-foreground hover:text-foreground">
+            <span className="flex items-center gap-2">
+              <Compass className="w-4 h-4" />
+              {showAlternatives ? "Hide" : "Show"} Nearby Alternatives ({alternatives.length})
+            </span>
+            {showAlternatives ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
 
-        {showAlternatives && (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground text-center">
-              Expanded radius options if top picks don&apos;t work out
-            </p>
-            {alternativeRestaurants.map((rec) => (
-              <Card key={rec.id} className="bg-muted/20 border-dashed">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-medium">{rec.name}</h4>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">
-                          {rec.cuisine}
-                        </Badge>
-                        <span>{rec.priceRange}</span>
-                        <span>{rec.distance}</span>
+          {showAlternatives && (
+            <div className="space-y-3">
+              {alternatives.map((rec, index) => (
+                <Card key={rec.id} className="bg-muted/20 border-dashed">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-medium">#{topPicks.length + index + 1}</span>
+                          <h4 className="font-medium truncate">{rec.name}</h4>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+                          <Badge variant="outline" className="text-xs">{rec.cuisine}</Badge>
+                          <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{rec.priceRange}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{rec.distance}</span>
+                        </div>
+                        {rec.conflicts.length > 0 && (
+                          <p className="text-xs text-destructive mt-1">{rec.conflicts.join(", ")}</p>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {rec.reasoning}
-                      </p>
+                      {showVoting && (
+                        <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => handleVote(rec.id)}>
+                          <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
+                          {getVoteCount(rec)}
+                        </Button>
+                      )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-lg font-bold text-muted-foreground">
-                        {rec.fitScore}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Fit</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3">
         <Button onClick={onBack} variant="outline" size="lg" className="flex-1">

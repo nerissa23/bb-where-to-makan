@@ -2,51 +2,22 @@
 
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { GroupSetup, type GroupData, type Member } from "@/components/group-setup"
+import { GroupSetup, type GroupData } from "@/components/group-setup"
 import { AddMembers } from "@/components/add-members"
 import { CravingInput, type CravingData } from "@/components/craving-input"
 import { ResultsDisplay, type Recommendation } from "@/components/results-display"
 import { StepIndicator } from "@/components/step-indicator"
+import { createGroup, getRecommendations } from "@/lib/api"
 
 const steps = ["Group", "Members", "Cravings", "Results"]
 
-const mockRecommendations: Recommendation[] = [
-  {
-    id: "1",
-    name: "Restoran Nasi Kandar Pelita",
-    cuisine: "Malaysian",
-    priceRange: "RM15-25",
-    distance: "0.8 km",
-    fitScore: 9,
-    reasoning:
-      "Perfect match for your group! This halal-certified restaurant fits within everyone's budget. The casual atmosphere suits a group gathering and they have extensive options to satisfy different tastes.",
-    conflicts: [],
-    votes: 2,
-  },
-  {
-    id: "2",
-    name: "Rakuzen Japanese Restaurant",
-    cuisine: "Japanese",
-    priceRange: "RM25-45",
-    distance: "1.2 km",
-    fitScore: 8,
-    reasoning:
-      "Great option for Japanese cuisine lovers. They have a dedicated halal menu section and vegetarian options available with tofu and vegetable sets.",
-    conflicts: ["Some items at upper budget limit"],
-    votes: 1,
-  },
-  {
-    id: "3",
-    name: "Murni Discovery SS2",
-    cuisine: "Fusion",
-    priceRange: "RM18-35",
-    distance: "2.1 km",
-    fitScore: 7,
-    reasoning:
-      "A solid backup with extensive menu variety covering Malaysian, Western, and Thai cuisines. Halal-certified with many vegetarian options. Known for generous portions.",
-    conflicts: ["Slightly further from meeting point", "Can be crowded on Fridays"],
-  },
-]
+const DIETARY_MAP: Record<string, string> = {
+  "Halal": "halal",
+  "Vegetarian": "vegetarian",
+  "Vegan": "vegan",
+  "No Pork": "no_pork",
+  "No Seafood": "no_seafood",
+}
 
 export default function WhereToMakan() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -70,14 +41,72 @@ export default function WhereToMakan() {
     setCurrentStep(3)
   }
 
-  const handleCravingNext = () => {
+  const handleCravingNext = async () => {
     setIsLoading(true)
     setCurrentStep(4)
-    // Simulate API call
-    setTimeout(() => {
-      setRecommendations(mockRecommendations)
+    try {
+      const { group_id } = await createGroup({
+        group_name: groupData.name,
+        members: groupData.members.map((m) => ({
+          name: m.name,
+          budget_rm: parseFloat(m.budget) || 0,
+          dietary: m.dietaryRestrictions.map((d) => DIETARY_MAP[d]).filter(Boolean),
+        })),
+      })
+
+      const { recommendations: restaurants } = await getRecommendations(group_id, {
+        craving: cravingData.freeText,
+        cuisine_mood: cravingData.cuisineMood,
+        meal_time: "lunch",
+        location: cravingData.location,
+        radius_metres: 8000,
+      })
+
+      const halalMembers = groupData.members.filter((m) =>
+        m.dietaryRestrictions.includes("Halal")
+      )
+      const vegMembers = groupData.members.filter((m) =>
+        m.dietaryRestrictions.includes("Vegetarian") || m.dietaryRestrictions.includes("Vegan")
+      )
+
+      setRecommendations(
+        restaurants.map((r) => {
+          const conflicts: string[] = []
+          if (
+            halalMembers.length > 0 &&
+            (r.halal_status === "unlikely" || r.halal_status === "unknown")
+          ) {
+            const names = halalMembers.map((m) => m.name).join(", ")
+            conflicts.push(`Restaurant is not halal verified — please check manually for ${names}`)
+          }
+          if (
+            vegMembers.length > 0 &&
+            r.vegetarian_status === "unfriendly"
+          ) {
+            const names = vegMembers.map((m) => m.name).join(", ")
+            conflicts.push(`No vegetarian options for ${names}`)
+          }
+          return {
+            id: r.place_id,
+            name: r.name,
+            cuisine: r.cuisine_types[0] ?? "Restaurant",
+            priceRange: r.price_range_rm ?? "Price N/A",
+            distance: `${r.distance_km.toFixed(1)} km`,
+            halal_status: r.halal_status,
+            vegetarian_status: r.vegetarian_status,
+            fitScore: null,
+            reasoning: null,
+            conflicts,
+            votes: 0,
+            isAlternative: r.distance_km > 3,
+          }
+        })
+      )
+    } catch (err) {
+      console.error("Failed to get recommendations:", err)
+    } finally {
       setIsLoading(false)
-    }, 2500)
+    }
   }
 
   const handleBack = () => {

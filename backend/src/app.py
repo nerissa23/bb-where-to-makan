@@ -2,6 +2,10 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.routers import groups, recommendations
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -15,7 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# register routers
+app.include_router(groups.router)
+app.include_router(recommendations.router)
+
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "message": "BB API is running"}
+    return {"status": "ok"}
