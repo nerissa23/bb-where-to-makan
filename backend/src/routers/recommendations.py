@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from src.models.group import Group, CravingRequest, PlacesRequest
+from src.models.group import CravingRequest, PlacesRequest
 from src.services.get_google_places import places_service
 
 # Reference same in-memory store — will move to DB later

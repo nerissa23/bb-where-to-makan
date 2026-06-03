@@ -5,7 +5,14 @@ import hashlib
 import logging
 import os
 import math
-from src.models.restaurant import Restaurant, HalalStatus, VegetarianStatus
+from src.models.restaurant import (
+    Restaurant,
+    Recommendation,
+    HalalStatus,
+    VegetarianStatus,
+)
+from src.services.ai_recommendations import rank_with_ai
+from src.services.ai_dietary import enhance_dietary_status
 from src.models.group import PlacesRequest
 from src.services.get_halal_status import get_halal_status
 from src.services.get_vegetarian_status import get_vegetarian_status
@@ -120,7 +127,8 @@ class PlacesService:
         "shopping_mall",
         "lodging",
         "hospital",
-        "bicycle_store"
+        "bicycle_store",
+        "gym",
     }
 
     def _normalise(self, raw: dict, olat: float, olng: float) -> Restaurant:
@@ -186,7 +194,10 @@ class PlacesService:
                 continue
             if halal_required and r.halal_status == HalalStatus.UNLIKELY:
                 continue
-            if vegetarian_required and r.vegetarian_status == VegetarianStatus.UNFRIENDLY:
+            if (
+                vegetarian_required
+                and r.vegetarian_status == VegetarianStatus.UNFRIENDLY
+            ):
                 continue
             out.append(r)
 
@@ -200,18 +211,21 @@ class PlacesService:
         request: PlacesRequest,
         halal_required: bool = False,
         vegetarian_required: bool = False,
-    ) -> list[Restaurant]:
+    ) -> list[Recommendation]:
 
         cache_key = self._key(request)
         cached = self._get_cache(cache_key)
 
         if cached:
             print("🔃 Fetching from cache...")
-            return self._filter(
+            filtered = self._filter(
                 cached,
                 request.budget_ceiling_rm,
                 halal_required,
                 vegetarian_required,
+            )
+            return rank_with_ai(
+                filtered[:20], request, halal_required, vegetarian_required
             )
 
         print("🔍 Fetching from Places API...")
@@ -224,6 +238,7 @@ class PlacesService:
             for r in (self._normalise(raw_r, lat, lng) for raw_r in raw)
             if r is not None
         ]
+        restaurants = enhance_dietary_status(restaurants)
         self._set_cache(cache_key, restaurants)
 
         candidates = self._filter(
@@ -234,7 +249,9 @@ class PlacesService:
         )
 
         logger.info(f"Returning {len(candidates)} candidates after filtering")
-        return candidates[:20]
+        return rank_with_ai(
+            candidates[:20], request, halal_required, vegetarian_required
+        )
 
 
 places_service = PlacesService()
