@@ -36,6 +36,15 @@ export interface BackendRestaurant {
   lng: number
 }
 
+export interface BackendRecommendation {
+  restaurant: BackendRestaurant
+  suitability_score: number
+  dietary_fit: string
+  dietary_reasoning: string
+  cravings_match: string
+  cravings_reasoning: string
+}
+
 export async function createGroup(group: BackendGroup): Promise<{ group_id: string }> {
   const res = await fetch(`${BASE_URL}/groups`, {
     method: "POST",
@@ -52,7 +61,7 @@ export async function createGroup(group: BackendGroup): Promise<{ group_id: stri
 export async function getRecommendations(
   groupId: string,
   craving: BackendCravingRequest
-): Promise<{ group_id: string; recommendations: BackendRestaurant[] }> {
+): Promise<{ group_id: string; recommendations: BackendRecommendation[] }> {
   const res = await fetch(`${BASE_URL}/groups/${groupId}/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

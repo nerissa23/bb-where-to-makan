@@ -33,6 +33,8 @@ export interface Recommendation {
   vegetarian_status?: "friendly" | "unfriendly" | "unknown"
   fitScore: number | null
   reasoning: string | null
+  dietary_fit?: string
+  cravings_match?: string
   conflicts: string[]
   votes?: number
   isAlternative?: boolean
@@ -222,7 +224,18 @@ export function ResultsDisplay({
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {rec.dietary_fit && (
+                  <Badge variant={rec.dietary_fit === "incompatible" ? "destructive" : rec.dietary_fit === "compatible" ? "default" : "secondary"} className="text-xs">
+                    {rec.dietary_fit === "incompatible" ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    Diet: {rec.dietary_fit}
+                  </Badge>
+                )}
+                {rec.cravings_match && (
+                  <Badge variant={rec.cravings_match === "no" ? "destructive" : rec.cravings_match === "yes" ? "default" : "secondary"} className="text-xs">
+                    Craving: {rec.cravings_match}
+                  </Badge>
+                )}
                 {members.map((member) => {
                   const needsHalal = member.dietaryRestrictions.includes("Halal")
                   const needsVeg =

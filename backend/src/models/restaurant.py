@@ -31,3 +31,12 @@ class Restaurant(BaseModel):
     distance_km: Optional[float] = None
     lat: float
     lng: float
+
+
+class Recommendation(BaseModel):
+    restaurant: Restaurant
+    suitability_score: float
+    dietary_fit: str
+    dietary_reasoning: str
+    cravings_match: str
+    cravings_reasoning: str

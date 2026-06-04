@@ -62,30 +62,27 @@ export default function WhereToMakan() {
         radius_metres: 8000,
       })
 
-      const halalMembers = groupData.members.filter((m) =>
-        m.dietaryRestrictions.includes("Halal")
-      )
-      const vegMembers = groupData.members.filter((m) =>
-        m.dietaryRestrictions.includes("Vegetarian") || m.dietaryRestrictions.includes("Vegan")
-      )
-
       setRecommendations(
-        restaurants.map((r) => {
+        restaurants.map((rec) => {
+          const r = rec.restaurant
+
+          const reasoningParts: string[] = []
+          if (rec.dietary_reasoning) reasoningParts.push(rec.dietary_reasoning)
+          if (rec.cravings_reasoning) reasoningParts.push(rec.cravings_reasoning)
+          const combinedReasoning = reasoningParts.join(" ") || null
+
+          const fitScore = rec.suitability_score
+            ? Math.round(rec.suitability_score * 10)
+            : null
+
           const conflicts: string[] = []
-          if (
-            halalMembers.length > 0 &&
-            (r.halal_status === "unlikely" || r.halal_status === "unknown")
-          ) {
-            const names = halalMembers.map((m) => m.name).join(", ")
-            conflicts.push(`Restaurant is not halal verified — please check manually for ${names}`)
+          if (rec.dietary_fit === "incompatible") {
+            conflicts.push(`Dietary concern: ${rec.dietary_reasoning}`)
           }
-          if (
-            vegMembers.length > 0 &&
-            r.vegetarian_status === "unfriendly"
-          ) {
-            const names = vegMembers.map((m) => m.name).join(", ")
-            conflicts.push(`No vegetarian options for ${names}`)
+          if (rec.cravings_match === "no") {
+            conflicts.push(`Cuisine mood mismatch: ${rec.cravings_reasoning}`)
           }
+
           return {
             id: r.place_id,
             name: r.name,
@@ -94,8 +91,10 @@ export default function WhereToMakan() {
             distance: `${r.distance_km.toFixed(1)} km`,
             halal_status: r.halal_status,
             vegetarian_status: r.vegetarian_status,
-            fitScore: null,
-            reasoning: null,
+            fitScore,
+            reasoning: combinedReasoning,
+            dietary_fit: rec.dietary_fit,
+            cravings_match: rec.cravings_match,
             conflicts,
             votes: 0,
             isAlternative: r.distance_km > 3,
