@@ -101,6 +101,10 @@ export default function ResultsPage() {
             />
           </CardContent>
         </Card>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Powered by AI — group dining decisions made easy
+        </p>
       </div>
     </main>
   )
