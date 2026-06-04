@@ -6,9 +6,12 @@ export interface BackendMember {
   budget_rm: number
 }
 
-export interface BackendGroup {
+export interface GroupState {
+  group_id: string
   group_name: string
+  status: "open" | "locked" | "done"
   members: BackendMember[]
+  results: BackendRecommendation[] | null
 }
 
 export interface BackendCravingRequest {
@@ -45,15 +48,37 @@ export interface BackendRecommendation {
   cravings_reasoning: string
 }
 
-export async function createGroup(group: BackendGroup): Promise<{ group_id: string }> {
+export async function createGroup(group_name: string): Promise<{ group_id: string }> {
   const res = await fetch(`${BASE_URL}/groups`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(group),
+    body: JSON.stringify({ group_name }),
   })
   if (!res.ok) {
     const body = await res.text().catch(() => "(no body)")
     throw new Error(`Failed to create group: ${res.status} ${body}`)
+  }
+  return res.json()
+}
+
+export async function getGroup(groupId: string): Promise<GroupState> {
+  const res = await fetch(`${BASE_URL}/groups/${groupId}`)
+  if (!res.ok) throw new Error(`Group not found: ${res.status}`)
+  return res.json()
+}
+
+export async function addMember(
+  groupId: string,
+  member: { name: string; dietary: string[]; budget_rm: number }
+): Promise<{ ok: boolean; member_count: number }> {
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(member),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(no body)")
+    throw new Error(`Failed to add member: ${res.status} ${body}`)
   }
   return res.json()
 }
@@ -67,6 +92,20 @@ export async function getRecommendations(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(craving),
   })
-  if (!res.ok) throw new Error("Failed to get recommendations")
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(no body)")
+    throw new Error(`Failed to get recommendations: ${res.status} ${body}`)
+  }
+  return res.json()
+}
+
+export async function getResults(
+  groupId: string
+): Promise<{ status: string; recommendations: BackendRecommendation[] | null }> {
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/results`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(no body)")
+    throw new Error(`Failed to get results: ${res.status} ${body}`)
+  }
   return res.json()
 }
