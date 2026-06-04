@@ -13,7 +13,7 @@ export default function LandingPage() {
               <UtensilsCrossed className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold text-foreground">BB — Where to Makan</h1>
+              <h1 className="text-3xl font-bold text-foreground">Where to Makan</h1>
               <p className="text-muted-foreground">A tasty solution for big backs.</p>
             </div>
             <Link href="/group/new" className="w-full">
