@@ -1,196 +1,31 @@
-"use client"
-
-import { useState } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { GroupSetup, type GroupData } from "@/components/group-setup"
-import { AddMembers } from "@/components/add-members"
-import { CravingInput, type CravingData } from "@/components/craving-input"
-import { ResultsDisplay, type Recommendation } from "@/components/results-display"
-import { StepIndicator } from "@/components/step-indicator"
-import { createGroup, getRecommendations } from "@/lib/api"
+import { UtensilsCrossed } from "lucide-react"
 
-const steps = ["Group", "Members", "Cravings", "Results"]
-
-const DIETARY_MAP: Record<string, string> = {
-  "Halal": "halal",
-  "Vegetarian": "vegetarian",
-  "Vegan": "vegan",
-  "No Pork": "no_pork",
-  "No Seafood": "no_seafood",
-}
-
-export default function WhereToMakan() {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [groupData, setGroupData] = useState<GroupData>({
-    name: "",
-    members: [],
-  })
-  const [cravingData, setCravingData] = useState<CravingData>({
-    freeText: "",
-    cuisineMood: [],
-    location: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-
-  const handleGroupNext = () => {
-    setCurrentStep(2)
-  }
-
-  const handleMembersNext = () => {
-    setCurrentStep(3)
-  }
-
-  const handleCravingNext = async () => {
-    setIsLoading(true)
-    setCurrentStep(4)
-    try {
-      const { group_id } = await createGroup({
-        group_name: groupData.name,
-        members: groupData.members.map((m) => ({
-          name: m.name,
-          budget_rm: parseFloat(m.budget) || 0,
-          dietary: m.dietaryRestrictions.map((d) => DIETARY_MAP[d]).filter(Boolean),
-        })),
-      })
-
-      const { recommendations: restaurants } = await getRecommendations(group_id, {
-        craving: cravingData.freeText,
-        cuisine_mood: cravingData.cuisineMood,
-        meal_time: "lunch",
-        location: cravingData.location,
-        radius_metres: 8000,
-      })
-
-      setRecommendations(
-        restaurants.map((rec) => {
-          const r = rec.restaurant
-
-          const reasoningParts: string[] = []
-          if (rec.dietary_reasoning) reasoningParts.push(rec.dietary_reasoning)
-          if (rec.cravings_reasoning) reasoningParts.push(rec.cravings_reasoning)
-          const combinedReasoning = reasoningParts.join(" ") || null
-
-          const fitScore = rec.suitability_score
-            ? Math.round(rec.suitability_score * 10)
-            : null
-
-          const conflicts: string[] = []
-          if (rec.dietary_fit === "incompatible") {
-            conflicts.push(`Dietary concern: ${rec.dietary_reasoning}`)
-          }
-          if (rec.cravings_match === "no") {
-            conflicts.push(`Cuisine mood mismatch: ${rec.cravings_reasoning}`)
-          }
-
-          return {
-            id: r.place_id,
-            name: r.name,
-            cuisine: r.cuisine_types[0] ?? "Restaurant",
-            priceRange: r.price_range_rm ?? "Price N/A",
-            distance: `${r.distance_km.toFixed(1)} km`,
-            halal_status: r.halal_status,
-            vegetarian_status: r.vegetarian_status,
-            fitScore,
-            reasoning: combinedReasoning,
-            dietary_fit: rec.dietary_fit,
-            cravings_match: rec.cravings_match,
-            conflicts,
-            votes: 0,
-            isAlternative: r.distance_km > 3,
-          }
-        })
-      )
-    } catch (err) {
-      console.error("Failed to get recommendations:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleBack = () => {
-    setCurrentStep((prev) => Math.max(1, prev - 1))
-  }
-
-  const handleStartOver = () => {
-    setCurrentStep(1)
-    setGroupData({
-      name: "",
-      members: [],
-    })
-    setCravingData({
-      freeText: "",
-      cuisineMood: [],
-      location: "",
-    })
-    setRecommendations([])
-  }
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen py-8 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">
-            Where to Makan?
-          </h1>
-          <p className="text-muted-foreground">
-            Find the perfect restaurant for your group
-          </p>
-        </div>
-
-        {/* Step Indicator */}
-        <StepIndicator currentStep={currentStep} steps={steps} />
-
-        {/* Main Content Card */}
+    <main className="min-h-screen flex items-center justify-center py-8 px-4">
+      <div className="max-w-lg w-full mx-auto space-y-6">
         <Card className="shadow-lg">
-          <CardContent className="p-6">
-            {currentStep === 1 && (
-              <GroupSetup
-                groupData={groupData}
-                setGroupData={setGroupData}
-                onNext={handleGroupNext}
-              />
-            )}
-
-            {currentStep === 2 && (
-              <AddMembers
-                groupData={groupData}
-                setGroupData={setGroupData}
-                onNext={handleMembersNext}
-                onBack={handleBack}
-              />
-            )}
-
-            {currentStep === 3 && (
-              <CravingInput
-                cravingData={cravingData}
-                setCravingData={setCravingData}
-                onNext={handleCravingNext}
-                onBack={handleBack}
-              />
-            )}
-
-            {currentStep === 4 && (
-              <ResultsDisplay
-                recommendations={recommendations}
-                groupName={groupData.name || "your group"}
-                participantCount={groupData.members.length}
-                members={groupData.members.map((m) => ({
-                  name: m.name,
-                  dietaryRestrictions: m.dietaryRestrictions,
-                }))}
-                onBack={handleBack}
-                onStartOver={handleStartOver}
-                isLoading={isLoading}
-                showVoting={true}
-              />
-            )}
+          <CardContent className="p-10 flex flex-col items-center text-center space-y-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <UtensilsCrossed className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-foreground">BB — Where to Makan</h1>
+              <p className="text-muted-foreground">A tasty solution for big backs.</p>
+            </div>
+            <Link href="/group/new" className="w-full">
+              <Button size="lg" className="w-full text-base">
+                Find somewhere to makan →
+              </Button>
+            </Link>
           </CardContent>
         </Card>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground">Powered by AI - Group dining decisions made easy</p>
+        <p className="text-center text-xs text-muted-foreground">
+          Powered by AI — group dining decisions made easy
+        </p>
       </div>
     </main>
   )
