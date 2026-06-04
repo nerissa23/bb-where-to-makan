@@ -108,9 +108,7 @@ MODEL=gemini-2.5-flash                  # or e.g. deepseek-r1:1.5b for Ollama
 
 CORS_ORIGINS=http://localhost:3000      # optional: comma-separated CORS origins
 
-DATABASE_URL=sqlite+aiosqlite:///./backend/db/bb.db
-PLACES_PROVIDER=hosted
-OSM_PLACES_API_KEY=your_hosted_osm_key_here
+DATABASE_URL=your-db-url
 
 # ------------ frontend ------------------
 NEXT_PUBLIC_API_URL=http://localhost:8000  # URL browser uses to reach backend
