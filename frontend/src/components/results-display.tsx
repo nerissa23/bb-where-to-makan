@@ -133,7 +133,7 @@ export function ResultsDisplay({
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2">
           <Star className="w-6 h-6 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold text-foreground">Top Picks for {groupName}</h2>
+        <h2 className="text-2xl font-bold text-foreground">Top Picks for <span className="text-primary">{groupName}</span></h2>
         <p className="text-muted-foreground">Recommendations based on {participantCount} members&apos; preferences</p>
       </div>
 
@@ -242,12 +242,21 @@ export function ResultsDisplay({
               <div className="flex flex-wrap items-center gap-2">
                 {rec.dietary_fit && (
                   <Badge variant={rec.dietary_fit === "incompatible" ? "destructive" : rec.dietary_fit === "compatible" ? "default" : "secondary"} className="text-xs">
-                    {rec.dietary_fit === "incompatible" ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    {rec.dietary_fit === "incompatible"
+                      ? <AlertTriangle className="w-3 h-3 mr-1" />
+                      : rec.dietary_fit === "compatible"
+                      ? <Check className="w-3 h-3 mr-1" />
+                      : null}
                     Diet: {rec.dietary_fit}
                   </Badge>
                 )}
                 {rec.cravings_match && (
                   <Badge variant={rec.cravings_match === "no" ? "destructive" : rec.cravings_match === "yes" ? "default" : "secondary"} className="text-xs">
+                    {rec.cravings_match === "yes"
+                      ? <Check className="w-3 h-3 mr-1" />
+                      : rec.cravings_match === "no"
+                      ? <AlertTriangle className="w-3 h-3 mr-1" />
+                      : null}
                     Craving: {rec.cravings_match}
                   </Badge>
                 )}
@@ -256,20 +265,36 @@ export function ResultsDisplay({
                   const needsVeg =
                     member.dietaryRestrictions.includes("Vegetarian") ||
                     member.dietaryRestrictions.includes("Vegan")
-                  const halalConflict =
-                    needsHalal &&
-                    (rec.halal_status === "unlikely" || rec.halal_status === "unknown")
-                  const vegConflict =
-                    needsVeg && rec.vegetarian_status === "unfriendly"
-                  const hasDietaryConflict = halalConflict || vegConflict
-                  const conflictReason = halalConflict
-                    ? rec.halal_status === "unlikely" ? "not halal" : "halal unverified"
-                    : vegConflict
-                    ? "no veg options"
-                    : null
+
+                  let state: "satisfied" | "uncertain" | "conflict" = "satisfied"
+                  let conflictReason: string | null = null
+
+                  if (needsHalal) {
+                    if (rec.halal_status === "unlikely") {
+                      state = "conflict"
+                      conflictReason = "not halal"
+                    } else if (rec.halal_status === "unknown") {
+                      state = "uncertain"
+                      conflictReason = "halal unverified"
+                    }
+                  }
+                  if (needsVeg && state !== "conflict") {
+                    if (rec.vegetarian_status === "unfriendly") {
+                      state = "conflict"
+                      conflictReason = "no veg options"
+                    } else if (rec.vegetarian_status === "unknown") {
+                      state = "uncertain"
+                      conflictReason = "veg unverified"
+                    }
+                  }
+
                   return (
-                    <Badge key={member.name} variant={hasDietaryConflict ? "destructive" : "secondary"} className="text-xs">
-                      {hasDietaryConflict ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    <Badge key={member.name} variant={state === "conflict" ? "destructive" : "secondary"} className="text-xs">
+                      {state === "conflict"
+                        ? <AlertTriangle className="w-3 h-3 mr-1" />
+                        : state === "satisfied"
+                        ? <Check className="w-3 h-3 mr-1" />
+                        : null}
                       {member.name}
                       {conflictReason && <span className="ml-1 opacity-80">({conflictReason})</span>}
                     </Badge>

@@ -106,7 +106,9 @@ export function CravingInput({
           />
           <div className="flex flex-wrap gap-2">
             {cravingSuggestions.map((suggestion) => (
-              <Badge key={suggestion} variant="secondary" className="cursor-pointer text-xs hover:bg-primary hover:text-primary-foreground transition-colors" onClick={() => applySuggestion(suggestion)}>
+              <Badge key={suggestion} variant={
+                cravingData.freeText.includes(suggestion) ? "default" : "secondary"
+              } className="cursor-pointer text-xs hover:bg-primary hover:text-primary-foreground transition-colors" onClick={() => applySuggestion(suggestion)}>
                 {suggestion}
               </Badge>
             ))}

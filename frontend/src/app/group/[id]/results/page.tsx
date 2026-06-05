@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { ResultsDisplay, type Recommendation } from "@/components/results-display"
 import { getGroup, type GroupState, type BackendRecommendation } from "@/lib/api"
+import { AppHeader } from "@/components/app-header"
+import { FoodDecorations } from "@/components/food-decorations"
 
 function transformRecommendations(recs: BackendRecommendation[]): Recommendation[] {
   return recs.map((rec) => {
@@ -77,10 +79,11 @@ export default function ResultsPage() {
   }
 
   return (
-    <main className="min-h-screen py-8 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">Where to Makan?</h1>
+    <main className="min-h-screen py-8 px-4 relative overflow-hidden">
+      <FoodDecorations />
+      <div className="max-w-lg mx-auto space-y-6 relative z-10">
+        <div className="text-center space-y-2">
+          <AppHeader />
           <p className="text-muted-foreground">Find the perfect restaurant for your group</p>
         </div>
 

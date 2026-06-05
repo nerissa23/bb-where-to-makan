@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Users } from "lucide-react"
 import { createGroup } from "@/lib/api"
+import { AppHeader } from "@/components/app-header"
 
 export default function NewGroupPage() {
   const router = useRouter()
@@ -29,10 +30,17 @@ export default function NewGroupPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center py-8 px-4">
-      <div className="max-w-lg w-full mx-auto space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">Where to Makan?</h1>
+    <main className="min-h-screen flex items-center justify-center py-8 px-4 relative overflow-hidden">
+      <img src="/avocado.svg" alt="" aria-hidden className="absolute -top-6 -left-6 w-44 h-44 opacity-75 -rotate-[15deg] pointer-events-none select-none" />
+      <img src="/tomatoes.svg" alt="" aria-hidden className="absolute -top-2 -right-6 w-36 h-36 opacity-70 rotate-[20deg] pointer-events-none select-none" />
+      <img src="/pancakes.svg" alt="" aria-hidden className="absolute -bottom-6 -left-8 w-48 h-48 opacity-70 rotate-[10deg] pointer-events-none select-none" />
+      <img src="/bread.svg" alt="" aria-hidden className="absolute -bottom-4 -right-6 w-44 h-44 opacity-70 -rotate-[20deg] pointer-events-none select-none" />
+      <img src="/banana.svg" alt="" aria-hidden className="absolute top-1/3 -left-10 w-28 h-28 opacity-55 rotate-[35deg] pointer-events-none select-none" />
+      <img src="/roast.svg" alt="" aria-hidden className="absolute top-1/2 -right-8 w-32 h-32 opacity-55 -rotate-[25deg] pointer-events-none select-none" />
+
+      <div className="max-w-lg w-full mx-auto space-y-6 relative">
+        <div className="text-center space-y-2">
+          <AppHeader />
           <p className="text-muted-foreground">Find the perfect restaurant for your group</p>
         </div>
 

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Playfair_Display, Raleway } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"], variable: '--font-geist' });
-const _geistMono = Geist_Mono({ subsets: ["latin"], variable: '--font-geist-mono' });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-playfair' })
+const raleway = Raleway({ subsets: ["latin"], variable: '--font-raleway' })
 
 export const metadata: Metadata = {
   title: 'Where to Makan?',
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${_geist.variable} ${_geistMono.variable} bg-background`}>
+    <html lang="en" className={`${playfair.variable} ${raleway.variable} bg-background`}>
       <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
