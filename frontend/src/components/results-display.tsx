@@ -23,6 +23,12 @@ import {
   Compass,
 } from "lucide-react"
 
+function parsePriceLow(priceRange: string | null | undefined): number {
+  if (!priceRange || priceRange === "Price N/A") return 0
+  const match = priceRange.match(/\d+/)
+  return match ? parseInt(match[0]) : 0
+}
+
 export interface Recommendation {
   id: string
   name: string
@@ -113,8 +119,13 @@ export function ResultsDisplay({
   }
 
   const sortedRecommendations = [...recommendations].sort((a, b) => getVoteCount(b) - getVoteCount(a))
-  const topPicks = sortedRecommendations.filter((r) => !r.isAlternative)
-  const alternatives = sortedRecommendations.filter((r) => r.isAlternative)
+  const filteredRecommendations = sortedRecommendations.filter((r) => {
+    const dist = parseFloat(r.distance)
+    const priceLow = parsePriceLow(r.priceRange)
+    return dist <= distanceFilter[0] && priceLow <= budgetFilter[0]
+  })
+  const topPicks = filteredRecommendations.filter((r) => !r.isAlternative)
+  const alternatives = filteredRecommendations.filter((r) => r.isAlternative)
 
   return (
     <div className="space-y-6">
@@ -174,7 +185,6 @@ export function ResultsDisplay({
                 </div>
                 <Slider value={distanceFilter} onValueChange={setDistanceFilter} max={10} min={1} step={0.5} className="py-2" />
               </div>
-              <Button size="sm" className="w-full">Apply Filters</Button>
             </CardContent>
           </Card>
         )}
@@ -192,6 +202,11 @@ export function ResultsDisplay({
       )}
 
       <div className="space-y-4">
+        {topPicks.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-4">
+            No restaurants match your filters. Try widening the budget or distance.
+          </p>
+        )}
         {topPicks.map((rec, index) => (
           <Card key={rec.id} className={`overflow-hidden transition-all hover:shadow-md ${index === 0 ? "border-primary border-2" : ""}`}>
             <CardHeader className="pb-2">
