@@ -23,11 +23,17 @@ def get_recommendations(group_id: str, craving: CravingRequest):
     group_data["status"] = "locked"
 
     # Derive constraints from group members
-    halal_required = any("halal" in m["dietary"] for m in members)
-    vegetarian_required = any(
-        "vegetarian" in m["dietary"] or "vegan" in m["dietary"]
-        for m in members
-    )
+    all_dietary: set[str] = set()
+    for m in members:
+        all_dietary.update(m["dietary"])
+
+    halal_required = "halal" in all_dietary
+    vegetarian_required = "vegetarian" in all_dietary or "vegan" in all_dietary
+    no_pork_required = "no_pork" in all_dietary or halal_required
+    no_beef_required = "no_beef" in all_dietary
+    no_seafood_required = "no_seafood" in all_dietary
+    gluten_free_required = "gluten_free" in all_dietary
+    dairy_free_required = "dairy_free" in all_dietary
     budget_ceiling = min(m["budget_rm"] for m in members)
 
     places_request = PlacesRequest(
@@ -43,6 +49,11 @@ def get_recommendations(group_id: str, craving: CravingRequest):
             request=places_request,
             halal_required=halal_required,
             vegetarian_required=vegetarian_required,
+            no_pork_required=no_pork_required,
+            no_beef_required=no_beef_required,
+            no_seafood_required=no_seafood_required,
+            gluten_free_required=gluten_free_required,
+            dairy_free_required=dairy_free_required,
         )
     except Exception as e:
         group_data["status"] = "open"

@@ -18,6 +18,11 @@ def _build_prompt(
     request: PlacesRequest,
     halal_required: bool,
     vegetarian_required: bool,
+    no_pork_required: bool = False,
+    no_beef_required: bool = False,
+    no_seafood_required: bool = False,
+    gluten_free_required: bool = False,
+    dairy_free_required: bool = False,
 ) -> str:
     lines: list[str] = [
         "You are a dietary and cuisine analysis assistant for restaurant recommendations in Malaysia.",
@@ -31,6 +36,11 @@ def _build_prompt(
         "Group constraints:",
         f"- Halal required: {halal_required}",
         f"- Vegetarian/Vegan required: {vegetarian_required}",
+        f"- No pork required: {no_pork_required}",
+        f"- No beef required: {no_beef_required}",
+        f"- No seafood required: {no_seafood_required}",
+        f"- Gluten-free required: {gluten_free_required}",
+        f"- Dairy-free required: {dairy_free_required}",
         f"- Cuisine mood: {request.cuisine_mood}",
         f"- Meal time: {request.meal_time}",
         f"- Budget ceiling (RM): {request.budget_ceiling_rm}",
@@ -44,6 +54,28 @@ def _build_prompt(
         "  - vegetarian_status 'friendly' → compatible",
         "  - vegetarian_status 'unknown' → uncertain; cap suitability_score at 0.35",
         "  - vegetarian_status 'unfriendly' → incompatible; suitability_score = 0.0",
+        "IMPORTANT — No-pork scoring rules (apply when no_pork_required is true):",
+        "  - Clearly pork-heavy cuisines (char siu, bak kut teh, wonton noodle, dim sum, Vietnamese with pork, Chinese BBQ) → incompatible; suitability_score = 0.0",
+        "  - Malay, Mamak, Indian, Middle Eastern restaurants → compatible",
+        "  - Others → uncertain; cap suitability_score at 0.35",
+        "IMPORTANT — No-beef scoring rules (apply when no_beef_required is true):",
+        "  - Steakhouses, burger chains, Korean BBQ, beef-specialist restaurants → incompatible; suitability_score = 0.0",
+        "  - Pure seafood, pure vegetarian, pure chicken/lamb restaurants → compatible",
+        "  - Mixed restaurants (most Malay, Chinese, Indian) → uncertain; no score penalty",
+        "IMPORTANT — No-seafood scoring rules (apply when no_seafood_required is true):",
+        "  - Seafood restaurants, fish head curry specialists, oyster/prawn-focused venues → incompatible; suitability_score = 0.0",
+        "  - Land-protein focused (chicken rice, beef, lamb, vegetarian) → compatible",
+        "  - Mixed restaurants → uncertain; no score penalty",
+        "IMPORTANT — Gluten-free scoring rules (apply when gluten_free_required is true):",
+        "  - Ramen, dim sum, pasta/Italian, naan-heavy Indian, bread-focused venues → uncertain; cap suitability_score at 0.35",
+        "  - Rice-based restaurants (Malay nasi, Indian rice meals, Chinese rice) → compatible",
+        "  - Mixed/unclear → uncertain; cap suitability_score at 0.5",
+        "IMPORTANT — Dairy-free scoring rules (apply when dairy_free_required is true):",
+        "  - Restaurants heavy on dairy (paneer, lassi, cheese-focused, Western pastries) → uncertain; cap suitability_score at 0.35",
+        "  - Chinese, Malay, most Southeast Asian cuisines → compatible",
+        "  - Mixed/unclear → uncertain; cap suitability_score at 0.5",
+        "Apply ALL applicable constraint rules. The final suitability_score is the lowest score after all caps are applied.",
+        "dietary_fit should reflect the worst-case constraint: 'incompatible' if any constraint fails, 'uncertain' if any is uncertain, 'compatible' only if all pass.",
         "IMPORTANT — Cuisine mood scoring rules:",
         "  - cravings_match 'yes' → no penalty from mood",
         "  - cravings_match 'no' → cap suitability_score at 0.6 (apply after dietary caps)",
@@ -96,6 +128,11 @@ def rank_with_ai(
     request: PlacesRequest,
     halal_required: bool,
     vegetarian_required: bool,
+    no_pork_required: bool = False,
+    no_beef_required: bool = False,
+    no_seafood_required: bool = False,
+    gluten_free_required: bool = False,
+    dairy_free_required: bool = False,
 ) -> list[Recommendation]:
     if not candidates:
         return []
@@ -115,7 +152,12 @@ def rank_with_ai(
             for r in candidates
         ]
 
-    prompt = _build_prompt(candidates, request, halal_required, vegetarian_required)
+    prompt = _build_prompt(
+        candidates, request,
+        halal_required, vegetarian_required,
+        no_pork_required, no_beef_required,
+        no_seafood_required, gluten_free_required, dairy_free_required,
+    )
     raw = prompt_model(model, prompt, AI_CONFIG)
 
     if raw.startswith("[Error") or raw.startswith("[Gemini Error") or raw.startswith("[Ollama Error"):
