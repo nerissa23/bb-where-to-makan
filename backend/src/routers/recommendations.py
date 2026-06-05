@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from src.models.group import CravingRequest, PlacesRequest
 from src.services.get_google_places import places_service
 
@@ -6,6 +6,7 @@ from src.services.get_google_places import places_service
 from src.routers.groups import _groups
 
 router = APIRouter(prefix="/groups", tags=["recommendations"])
+
 
 @router.post("/{group_id}/recommend")
 def get_recommendations(group_id: str, craving: CravingRequest):
@@ -15,18 +16,20 @@ def get_recommendations(group_id: str, craving: CravingRequest):
     group_data = _groups[group_id]
     members = group_data["members"]
 
+    if not members:
+        raise HTTPException(status_code=400, detail="Group has no members yet")
+
+    # Lock the group so friends get redirected to results
+    group_data["status"] = "locked"
+
     # Derive constraints from group members
-    halal_required = any(
-        "halal" in m["dietary"]
-        for m in members
-    )
+    halal_required = any("halal" in m["dietary"] for m in members)
     vegetarian_required = any(
         "vegetarian" in m["dietary"] or "vegan" in m["dietary"]
         for m in members
     )
     budget_ceiling = min(m["budget_rm"] for m in members)
 
-    # Build places request
     places_request = PlacesRequest(
         location=craving.location,
         budget_ceiling_rm=budget_ceiling,
@@ -35,7 +38,6 @@ def get_recommendations(group_id: str, craving: CravingRequest):
         radius_metres=craving.radius_metres,
     )
 
-    # Get restaurant candidates
     try:
         candidates = places_service.get_candidates(
             request=places_request,
@@ -43,10 +45,28 @@ def get_recommendations(group_id: str, craving: CravingRequest):
             vegetarian_required=vegetarian_required,
         )
     except Exception as e:
+        group_data["status"] = "open"
         raise HTTPException(status_code=500, detail=str(e))
 
-    # For now return candidates directly — AI layer comes next
-    return {
-        "group_id": group_id,
-        "recommendations": [r.model_dump() for r in candidates]
-    }
+    results = [r.model_dump() for r in candidates]
+    group_data["results"] = results
+    group_data["status"] = "done"
+
+    return {"group_id": group_id, "recommendations": results}
+
+
+@router.get("/{group_id}/results")
+def get_results(group_id: str, response: Response):
+    if group_id not in _groups:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    group_data = _groups[group_id]
+
+    if group_data["status"] == "open":
+        raise HTTPException(status_code=404, detail="Recommendations not started yet")
+
+    if group_data["status"] == "locked":
+        response.status_code = 202
+        return {"status": "locked", "recommendations": None}
+
+    return {"status": "done", "recommendations": group_data["results"]}

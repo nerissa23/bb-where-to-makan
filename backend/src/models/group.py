@@ -10,15 +10,26 @@ class DietaryRestriction(str, Enum):
     NO_SEAFOOD = "no_seafood"
 
 
+class GroupStatus(str, Enum):
+    OPEN = "open"
+    LOCKED = "locked"
+    DONE = "done"
+
+
 class Member(BaseModel):
     name: str
     dietary: list[DietaryRestriction] = []
     budget_rm: float
 
 
-class Group(BaseModel):
+class CreateGroupRequest(BaseModel):
     group_name: str
-    members: list[Member]
+
+
+class AddMemberRequest(BaseModel):
+    name: str
+    dietary: list[DietaryRestriction] = []
+    budget_rm: float
 
 
 class CravingRequest(BaseModel):

@@ -25,6 +25,8 @@ def _build_prompt(unknowns: list[tuple[int, Restaurant]]) -> str:
         "- Japanese restaurants: some are halal, some use pork-based broth -> unknown",
         "- Korean BBQ: some halal, some serve pork -> unknown",
         "- Chinese restaurants: varies -> unknown unless name suggests halal",
+        "- Vietnamese restaurants (pho, banh mi, bun bo, 'viet' in name) -> unlikely (pork used extensively)",
+        "- Chinese roast meat, dim sum, wonton noodle specialists -> unlikely (pork-based)",
         "- Pubs, bars, breweries -> unlikely",
         "- Pork/bacon/BBQ specialist, beer/alcohol in name -> unlikely",
         "- If uncertain -> unknown",
