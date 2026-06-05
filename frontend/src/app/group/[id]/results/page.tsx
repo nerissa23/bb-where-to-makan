@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { ResultsDisplay, type Recommendation } from "@/components/results-display"
 import { getGroup, type GroupState, type BackendRecommendation } from "@/lib/api"
+import { AppHeader } from "@/components/app-header"
+import { FoodDecorations } from "@/components/food-decorations"
 
 function transformRecommendations(recs: BackendRecommendation[]): Recommendation[] {
   return recs.map((rec) => {
@@ -24,7 +26,7 @@ function transformRecommendations(recs: BackendRecommendation[]): Recommendation
       distance: `${r.distance_km.toFixed(1)} km`,
       halal_status: r.halal_status,
       vegetarian_status: r.vegetarian_status,
-      fitScore: rec.suitability_score ? Math.round(rec.suitability_score * 10) : null,
+      fitScore: Math.round(rec.suitability_score * 10),
       reasoning: reasoningParts.join(" ") || null,
       dietary_fit: rec.dietary_fit,
       cravings_match: rec.cravings_match,
@@ -58,11 +60,9 @@ export default function ResultsPage() {
 
   useEffect(() => {
     poll()
-    const interval = setInterval(() => {
-      if (!isDone) poll()
-    }, 3000)
+    const interval = setInterval(poll, 3000)
     return () => clearInterval(interval)
-  }, [poll, isDone])
+  }, [poll])
 
   if (!isDone) {
     return (
@@ -77,10 +77,11 @@ export default function ResultsPage() {
   }
 
   return (
-    <main className="min-h-screen py-8 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">Where to Makan?</h1>
+    <main className="min-h-screen py-8 px-4 relative overflow-hidden">
+      <FoodDecorations />
+      <div className="max-w-lg mx-auto space-y-6 relative z-10">
+        <div className="text-center space-y-2">
+          <AppHeader />
           <p className="text-muted-foreground">Find the perfect restaurant for your group</p>
         </div>
 
@@ -98,6 +99,8 @@ export default function ResultsPage() {
               onStartOver={() => router.push("/")}
               isLoading={false}
               showVoting={true}
+              groupId={id}
+              serverVotes={group?.votes ?? {}}
             />
           </CardContent>
         </Card>

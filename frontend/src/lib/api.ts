@@ -12,6 +12,7 @@ export interface GroupState {
   status: "open" | "locked" | "done"
   members: BackendMember[]
   results: BackendRecommendation[] | null
+  votes: Record<string, number>
 }
 
 export interface BackendCravingRequest {
@@ -97,6 +98,18 @@ export async function getRecommendations(
     throw new Error(`Failed to get recommendations: ${res.status} ${body}`)
   }
   return res.json()
+}
+
+export async function castVote(
+  groupId: string,
+  restaurantId: string,
+  delta: number
+): Promise<void> {
+  await fetch(`${BASE_URL}/groups/${groupId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ restaurant_id: restaurantId, delta }),
+  })
 }
 
 export async function getResults(

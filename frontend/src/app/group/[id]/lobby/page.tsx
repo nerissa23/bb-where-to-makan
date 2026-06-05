@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Link2, Copy, Check, Users, Loader2 } from "lucide-react"
 import { getGroup, addMember, type GroupState } from "@/lib/api"
 import { MemberPreferencesForm } from "@/components/member-preferences-form"
+import { AppHeader } from "@/components/app-header"
+import { FoodDecorations } from "@/components/food-decorations"
 
 export default function LobbyPage() {
   const { id } = useParams<{ id: string }>()
@@ -70,21 +72,20 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="min-h-screen py-8 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">Where to Makan?</h1>
+    <main className="min-h-screen py-8 px-4 relative overflow-hidden">
+      <FoodDecorations />
+      <div className="max-w-lg mx-auto space-y-6 relative z-10">
+        <div className="text-center space-y-2">
+          <AppHeader />
           <p className="text-muted-foreground">Find the perfect restaurant for your group</p>
         </div>
 
         <Card className="shadow-lg">
           <CardContent className="p-6 space-y-6">
-            {/* Group name */}
             <div className="text-center">
               <h2 className="text-2xl font-bold text-foreground">{group.group_name}</h2>
             </div>
 
-            {/* Invite link */}
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <Link2 className="w-4 h-4" />
@@ -102,7 +103,6 @@ export default function LobbyPage() {
 
             <hr className="border-border" />
 
-            {/* Organiser preferences */}
             {!prefsSaved ? (
               <div className="space-y-4">
                 <p className="text-sm font-medium">Your preferences (organiser)</p>
@@ -122,7 +122,6 @@ export default function LobbyPage() {
 
             <hr className="border-border" />
 
-            {/* Members list */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Users className="w-4 h-4" />
@@ -155,7 +154,6 @@ export default function LobbyPage() {
 
             <hr className="border-border" />
 
-            {/* Start button */}
             <div className="space-y-1">
               <Button
                 onClick={handleStart}

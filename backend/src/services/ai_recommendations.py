@@ -44,6 +44,10 @@ def _build_prompt(
         "  - vegetarian_status 'friendly' → compatible",
         "  - vegetarian_status 'unknown' → uncertain; cap suitability_score at 0.35",
         "  - vegetarian_status 'unfriendly' → incompatible; suitability_score = 0.0",
+        "IMPORTANT — Cuisine mood scoring rules:",
+        "  - cravings_match 'yes' → no penalty from mood",
+        "  - cravings_match 'no' → cap suitability_score at 0.6 (apply after dietary caps)",
+        "  - cravings_match 'uncertain' → no penalty from mood",
         "",
         "Restaurants:",
     ]

@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, HTTPException
-from src.models.group import CreateGroupRequest, AddMemberRequest
+from src.models.group import CreateGroupRequest, AddMemberRequest, VoteRequest
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -17,6 +17,7 @@ def create_group(body: CreateGroupRequest):
         "status": "open",
         "members": [],
         "results": None,
+        "votes": {},
     }
     return {"group_id": group_id}
 
@@ -26,6 +27,16 @@ def get_group(group_id: str):
     if group_id not in _groups:
         raise HTTPException(status_code=404, detail="Group not found")
     return _groups[group_id]
+
+
+@router.post("/{group_id}/vote")
+def cast_vote(group_id: str, body: VoteRequest):
+    if group_id not in _groups:
+        raise HTTPException(status_code=404, detail="Group not found")
+    group = _groups[group_id]
+    current = group.get("votes", {}).get(body.restaurant_id, 0)
+    group.setdefault("votes", {})[body.restaurant_id] = max(0, current + body.delta)
+    return {"ok": True}
 
 
 @router.post("/{group_id}/members")

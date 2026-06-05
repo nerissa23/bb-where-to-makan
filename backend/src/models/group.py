@@ -46,3 +46,8 @@ class PlacesRequest(BaseModel):
     cuisine_mood: list[str] = []
     meal_time: str
     radius_metres: int = 3000
+
+
+class VoteRequest(BaseModel):
+    restaurant_id: str
+    delta: int  # +1 to vote, -1 to unvote
