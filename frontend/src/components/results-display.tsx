@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { castVote } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -56,6 +57,8 @@ interface ResultsDisplayProps {
   onStartOver: () => void
   isLoading: boolean
   showVoting?: boolean
+  groupId?: string
+  serverVotes?: Record<string, number>
 }
 
 export function ResultsDisplay({
@@ -67,9 +70,10 @@ export function ResultsDisplay({
   onStartOver,
   isLoading,
   showVoting = true,
+  groupId,
+  serverVotes = {},
 }: ResultsDisplayProps) {
   const [recommendations, setRecommendations] = useState(initialRecommendations)
-  const [votes, setVotes] = useState<Record<string, number>>({})
   const [votedItems, setVotedItems] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [budgetFilter, setBudgetFilter] = useState([50])
@@ -80,23 +84,18 @@ export function ResultsDisplay({
     setRecommendations(initialRecommendations)
   }, [initialRecommendations])
 
-  const handleVote = (id: string) => {
-    if (votedItems.has(id)) {
-      setVotedItems((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(id)
-        return newSet
-      })
-      setVotes((prev) => ({ ...prev, [id]: (prev[id] || 1) - 1 }))
-    } else {
-      setVotedItems((prev) => new Set(prev).add(id))
-      setVotes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
-    }
-  }
+  const handleVote = useCallback((id: string) => {
+    const isVoted = votedItems.has(id)
+    const delta = isVoted ? -1 : 1
+    setVotedItems((prev) => {
+      const next = new Set(prev)
+      isVoted ? next.delete(id) : next.add(id)
+      return next
+    })
+    if (groupId) castVote(groupId, id, delta)
+  }, [votedItems, groupId])
 
-  const getVoteCount = (rec: Recommendation) => {
-    return (rec.votes || 0) + (votes[rec.id] || 0)
-  }
+  const getVoteCount = (rec: Recommendation) => serverVotes[rec.id] ?? 0
 
   if (isLoading) {
     return (
@@ -190,7 +189,7 @@ export function ResultsDisplay({
         )}
       </div>
 
-      {showVoting && Object.keys(votes).length > 0 && (
+      {showVoting && Object.keys(serverVotes).length > 0 && (
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-3">
             <div className="flex items-center justify-between text-sm">
@@ -224,12 +223,10 @@ export function ResultsDisplay({
                     </div>
                   </div>
                 </div>
-                {rec.fitScore !== null && (
-                  <div className="text-right shrink-0">
-                    <div className="text-2xl font-bold text-primary">{rec.fitScore}</div>
-                    <div className="text-xs text-muted-foreground">Fit Score</div>
-                  </div>
-                )}
+                <div className="text-right shrink-0">
+                  <div className="text-2xl font-bold text-primary">{rec.fitScore ?? "?"}/10</div>
+                  <div className="text-xs text-muted-foreground">Match</div>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -261,10 +258,11 @@ export function ResultsDisplay({
                   </Badge>
                 )}
                 {members.map((member) => {
-                  const needsHalal = member.dietaryRestrictions.includes("Halal")
+                  if (member.dietaryRestrictions.length === 0) return null
+                  const needsHalal = member.dietaryRestrictions.includes("halal")
                   const needsVeg =
-                    member.dietaryRestrictions.includes("Vegetarian") ||
-                    member.dietaryRestrictions.includes("Vegan")
+                    member.dietaryRestrictions.includes("vegetarian") ||
+                    member.dietaryRestrictions.includes("vegan")
 
                   let state: "satisfied" | "uncertain" | "conflict" = "satisfied"
                   let conflictReason: string | null = null
@@ -302,15 +300,6 @@ export function ResultsDisplay({
                 })}
               </div>
 
-              {rec.conflicts.length > 0 && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <span className="font-medium text-destructive">Constraint conflicts: </span>
-                    <span className="text-muted-foreground">{rec.conflicts.join(", ")}</span>
-                  </div>
-                </div>
-              )}
 
               <div className="flex items-center justify-between">
                 <Progress value={(rec.fitScore ?? 0) * 10} className="h-2 flex-1 mr-4" />
@@ -356,12 +345,20 @@ export function ResultsDisplay({
                           <p className="text-xs text-destructive mt-1">{rec.conflicts.join(", ")}</p>
                         )}
                       </div>
-                      {showVoting && (
-                        <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => handleVote(rec.id)}>
-                          <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
-                          {getVoteCount(rec)}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rec.fitScore != null && (
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-primary">{rec.fitScore}/10</div>
+                            <div className="text-xs text-muted-foreground">Match</div>
+                          </div>
+                        )}
+                        {showVoting && (
+                          <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" onClick={() => handleVote(rec.id)}>
+                            <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
+                            {getVoteCount(rec)}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

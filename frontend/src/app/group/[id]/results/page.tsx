@@ -26,7 +26,7 @@ function transformRecommendations(recs: BackendRecommendation[]): Recommendation
       distance: `${r.distance_km.toFixed(1)} km`,
       halal_status: r.halal_status,
       vegetarian_status: r.vegetarian_status,
-      fitScore: rec.suitability_score ? Math.round(rec.suitability_score * 10) : null,
+      fitScore: Math.round(rec.suitability_score * 10),
       reasoning: reasoningParts.join(" ") || null,
       dietary_fit: rec.dietary_fit,
       cravings_match: rec.cravings_match,
@@ -60,11 +60,9 @@ export default function ResultsPage() {
 
   useEffect(() => {
     poll()
-    const interval = setInterval(() => {
-      if (!isDone) poll()
-    }, 3000)
+    const interval = setInterval(poll, 3000)
     return () => clearInterval(interval)
-  }, [poll, isDone])
+  }, [poll])
 
   if (!isDone) {
     return (
@@ -101,6 +99,8 @@ export default function ResultsPage() {
               onStartOver={() => router.push("/")}
               isLoading={false}
               showVoting={true}
+              groupId={id}
+              serverVotes={group?.votes ?? {}}
             />
           </CardContent>
         </Card>
