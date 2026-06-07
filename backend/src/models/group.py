@@ -7,7 +7,10 @@ class DietaryRestriction(str, Enum):
     VEGETARIAN = "vegetarian"
     VEGAN = "vegan"
     NO_PORK = "no_pork"
+    NO_BEEF = "no_beef"
     NO_SEAFOOD = "no_seafood"
+    GLUTEN_FREE = "gluten_free"
+    DAIRY_FREE = "dairy_free"
 
 
 class GroupStatus(str, Enum):
