@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { castVote } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,12 @@ import {
   ChevronUp,
   Compass,
 } from "lucide-react"
+
+function parsePriceLow(priceRange: string | null | undefined): number {
+  if (!priceRange || priceRange === "Price N/A") return 0
+  const match = priceRange.match(/\d+/)
+  return match ? parseInt(match[0]) : 0
+}
 
 export interface Recommendation {
   id: string
@@ -50,6 +57,8 @@ interface ResultsDisplayProps {
   onStartOver: () => void
   isLoading: boolean
   showVoting?: boolean
+  groupId?: string
+  serverVotes?: Record<string, number>
 }
 
 export function ResultsDisplay({
@@ -61,9 +70,10 @@ export function ResultsDisplay({
   onStartOver,
   isLoading,
   showVoting = true,
+  groupId,
+  serverVotes = {},
 }: ResultsDisplayProps) {
   const [recommendations, setRecommendations] = useState(initialRecommendations)
-  const [votes, setVotes] = useState<Record<string, number>>({})
   const [votedItems, setVotedItems] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [budgetFilter, setBudgetFilter] = useState([50])
@@ -74,23 +84,18 @@ export function ResultsDisplay({
     setRecommendations(initialRecommendations)
   }, [initialRecommendations])
 
-  const handleVote = (id: string) => {
-    if (votedItems.has(id)) {
-      setVotedItems((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(id)
-        return newSet
-      })
-      setVotes((prev) => ({ ...prev, [id]: (prev[id] || 1) - 1 }))
-    } else {
-      setVotedItems((prev) => new Set(prev).add(id))
-      setVotes((prev) => ({ ...prev, [id]: (prev[id] || 0) + 1 }))
-    }
-  }
+  const handleVote = useCallback((id: string) => {
+    const isVoted = votedItems.has(id)
+    const delta = isVoted ? -1 : 1
+    setVotedItems((prev) => {
+      const next = new Set(prev)
+      isVoted ? next.delete(id) : next.add(id)
+      return next
+    })
+    if (groupId) castVote(groupId, id, delta)
+  }, [votedItems, groupId])
 
-  const getVoteCount = (rec: Recommendation) => {
-    return (rec.votes || 0) + (votes[rec.id] || 0)
-  }
+  const getVoteCount = (rec: Recommendation) => serverVotes[rec.id] ?? 0
 
   if (isLoading) {
     return (
@@ -113,8 +118,13 @@ export function ResultsDisplay({
   }
 
   const sortedRecommendations = [...recommendations].sort((a, b) => getVoteCount(b) - getVoteCount(a))
-  const topPicks = sortedRecommendations.filter((r) => !r.isAlternative)
-  const alternatives = sortedRecommendations.filter((r) => r.isAlternative)
+  const filteredRecommendations = sortedRecommendations.filter((r) => {
+    const dist = parseFloat(r.distance)
+    const priceLow = parsePriceLow(r.priceRange)
+    return dist <= distanceFilter[0] && priceLow <= budgetFilter[0]
+  })
+  const topPicks = filteredRecommendations.filter((r) => !r.isAlternative)
+  const alternatives = filteredRecommendations.filter((r) => r.isAlternative)
 
   return (
     <div className="space-y-6">
@@ -122,7 +132,7 @@ export function ResultsDisplay({
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2">
           <Star className="w-6 h-6 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold text-foreground">Top Picks for {groupName}</h2>
+        <h2 className="text-2xl font-bold text-foreground">Top Picks for <span className="text-primary">{groupName}</span></h2>
         <p className="text-muted-foreground">Recommendations based on {participantCount} members&apos; preferences</p>
       </div>
 
@@ -174,13 +184,12 @@ export function ResultsDisplay({
                 </div>
                 <Slider value={distanceFilter} onValueChange={setDistanceFilter} max={10} min={1} step={0.5} className="py-2" />
               </div>
-              <Button size="sm" className="w-full">Apply Filters</Button>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {showVoting && Object.keys(votes).length > 0 && (
+      {showVoting && Object.keys(serverVotes).length > 0 && (
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-3">
             <div className="flex items-center justify-between text-sm">
@@ -192,6 +201,11 @@ export function ResultsDisplay({
       )}
 
       <div className="space-y-4">
+        {topPicks.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-4">
+            No restaurants match your filters. Try widening the budget or distance.
+          </p>
+        )}
         {topPicks.map((rec, index) => (
           <Card key={rec.id} className={`overflow-hidden transition-all hover:shadow-md ${index === 0 ? "border-primary border-2" : ""}`}>
             <CardHeader className="pb-2">
@@ -209,12 +223,10 @@ export function ResultsDisplay({
                     </div>
                   </div>
                 </div>
-                {rec.fitScore !== null && (
-                  <div className="text-right shrink-0">
-                    <div className="text-2xl font-bold text-primary">{rec.fitScore}</div>
-                    <div className="text-xs text-muted-foreground">Fit Score</div>
-                  </div>
-                )}
+                <div className="text-right shrink-0">
+                  <div className="text-2xl font-bold text-primary">{rec.fitScore ?? "?"}/10</div>
+                  <div className="text-xs text-muted-foreground">Match</div>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -227,34 +239,60 @@ export function ResultsDisplay({
               <div className="flex flex-wrap items-center gap-2">
                 {rec.dietary_fit && (
                   <Badge variant={rec.dietary_fit === "incompatible" ? "destructive" : rec.dietary_fit === "compatible" ? "default" : "secondary"} className="text-xs">
-                    {rec.dietary_fit === "incompatible" ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    {rec.dietary_fit === "incompatible"
+                      ? <AlertTriangle className="w-3 h-3 mr-1" />
+                      : rec.dietary_fit === "compatible"
+                      ? <Check className="w-3 h-3 mr-1" />
+                      : null}
                     Diet: {rec.dietary_fit}
                   </Badge>
                 )}
                 {rec.cravings_match && (
                   <Badge variant={rec.cravings_match === "no" ? "destructive" : rec.cravings_match === "yes" ? "default" : "secondary"} className="text-xs">
+                    {rec.cravings_match === "yes"
+                      ? <Check className="w-3 h-3 mr-1" />
+                      : rec.cravings_match === "no"
+                      ? <AlertTriangle className="w-3 h-3 mr-1" />
+                      : null}
                     Craving: {rec.cravings_match}
                   </Badge>
                 )}
                 {members.map((member) => {
-                  const needsHalal = member.dietaryRestrictions.includes("Halal")
+                  if (member.dietaryRestrictions.length === 0) return null
+                  const needsHalal = member.dietaryRestrictions.includes("halal")
                   const needsVeg =
-                    member.dietaryRestrictions.includes("Vegetarian") ||
-                    member.dietaryRestrictions.includes("Vegan")
-                  const halalConflict =
-                    needsHalal &&
-                    (rec.halal_status === "unlikely" || rec.halal_status === "unknown")
-                  const vegConflict =
-                    needsVeg && rec.vegetarian_status === "unfriendly"
-                  const hasDietaryConflict = halalConflict || vegConflict
-                  const conflictReason = halalConflict
-                    ? rec.halal_status === "unlikely" ? "not halal" : "halal unverified"
-                    : vegConflict
-                    ? "no veg options"
-                    : null
+                    member.dietaryRestrictions.includes("vegetarian") ||
+                    member.dietaryRestrictions.includes("vegan")
+
+                  let state: "satisfied" | "uncertain" | "conflict" = "satisfied"
+                  let conflictReason: string | null = null
+
+                  if (needsHalal) {
+                    if (rec.halal_status === "unlikely") {
+                      state = "conflict"
+                      conflictReason = "not halal"
+                    } else if (rec.halal_status === "unknown") {
+                      state = "uncertain"
+                      conflictReason = "halal unverified"
+                    }
+                  }
+                  if (needsVeg && state !== "conflict") {
+                    if (rec.vegetarian_status === "unfriendly") {
+                      state = "conflict"
+                      conflictReason = "no veg options"
+                    } else if (rec.vegetarian_status === "unknown") {
+                      state = "uncertain"
+                      conflictReason = "veg unverified"
+                    }
+                  }
+
                   return (
-                    <Badge key={member.name} variant={hasDietaryConflict ? "destructive" : "secondary"} className="text-xs">
-                      {hasDietaryConflict ? <AlertTriangle className="w-3 h-3 mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                    <Badge key={member.name} variant={state === "conflict" ? "destructive" : "secondary"} className="text-xs">
+                      {state === "conflict"
+                        ? <AlertTriangle className="w-3 h-3 mr-1" />
+                        : state === "satisfied"
+                        ? <Check className="w-3 h-3 mr-1" />
+                        : null}
                       {member.name}
                       {conflictReason && <span className="ml-1 opacity-80">({conflictReason})</span>}
                     </Badge>
@@ -262,15 +300,6 @@ export function ResultsDisplay({
                 })}
               </div>
 
-              {rec.conflicts.length > 0 && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <span className="font-medium text-destructive">Constraint conflicts: </span>
-                    <span className="text-muted-foreground">{rec.conflicts.join(", ")}</span>
-                  </div>
-                </div>
-              )}
 
               <div className="flex items-center justify-between">
                 <Progress value={(rec.fitScore ?? 0) * 10} className="h-2 flex-1 mr-4" />
@@ -316,12 +345,20 @@ export function ResultsDisplay({
                           <p className="text-xs text-destructive mt-1">{rec.conflicts.join(", ")}</p>
                         )}
                       </div>
-                      {showVoting && (
-                        <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" className="shrink-0" onClick={() => handleVote(rec.id)}>
-                          <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
-                          {getVoteCount(rec)}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {rec.fitScore != null && (
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-primary">{rec.fitScore}/10</div>
+                            <div className="text-xs text-muted-foreground">Match</div>
+                          </div>
+                        )}
+                        {showVoting && (
+                          <Button variant={votedItems.has(rec.id) ? "default" : "outline"} size="sm" onClick={() => handleVote(rec.id)}>
+                            <ThumbsUp className={`w-4 h-4 mr-1 ${votedItems.has(rec.id) ? "fill-current" : ""}`} />
+                            {getVoteCount(rec)}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

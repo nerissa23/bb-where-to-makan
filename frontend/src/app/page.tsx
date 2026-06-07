@@ -1,196 +1,71 @@
-"use client"
+import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
 
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { GroupSetup, type GroupData } from "@/components/group-setup"
-import { AddMembers } from "@/components/add-members"
-import { CravingInput, type CravingData } from "@/components/craving-input"
-import { ResultsDisplay, type Recommendation } from "@/components/results-display"
-import { StepIndicator } from "@/components/step-indicator"
-import { createGroup, getRecommendations } from "@/lib/api"
-
-const steps = ["Group", "Members", "Cravings", "Results"]
-
-const DIETARY_MAP: Record<string, string> = {
-  "Halal": "halal",
-  "Vegetarian": "vegetarian",
-  "Vegan": "vegan",
-  "No Pork": "no_pork",
-  "No Seafood": "no_seafood",
-}
-
-export default function WhereToMakan() {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [groupData, setGroupData] = useState<GroupData>({
-    name: "",
-    members: [],
-  })
-  const [cravingData, setCravingData] = useState<CravingData>({
-    freeText: "",
-    cuisineMood: [],
-    location: "",
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-
-  const handleGroupNext = () => {
-    setCurrentStep(2)
-  }
-
-  const handleMembersNext = () => {
-    setCurrentStep(3)
-  }
-
-  const handleCravingNext = async () => {
-    setIsLoading(true)
-    setCurrentStep(4)
-    try {
-      const { group_id } = await createGroup({
-        group_name: groupData.name,
-        members: groupData.members.map((m) => ({
-          name: m.name,
-          budget_rm: parseFloat(m.budget) || 0,
-          dietary: m.dietaryRestrictions.map((d) => DIETARY_MAP[d]).filter(Boolean),
-        })),
-      })
-
-      const { recommendations: restaurants } = await getRecommendations(group_id, {
-        craving: cravingData.freeText,
-        cuisine_mood: cravingData.cuisineMood,
-        meal_time: "lunch",
-        location: cravingData.location,
-        radius_metres: 8000,
-      })
-
-      setRecommendations(
-        restaurants.map((rec) => {
-          const r = rec.restaurant
-
-          const reasoningParts: string[] = []
-          if (rec.dietary_reasoning) reasoningParts.push(rec.dietary_reasoning)
-          if (rec.cravings_reasoning) reasoningParts.push(rec.cravings_reasoning)
-          const combinedReasoning = reasoningParts.join(" ") || null
-
-          const fitScore = rec.suitability_score
-            ? Math.round(rec.suitability_score * 10)
-            : null
-
-          const conflicts: string[] = []
-          if (rec.dietary_fit === "incompatible") {
-            conflicts.push(`Dietary concern: ${rec.dietary_reasoning}`)
-          }
-          if (rec.cravings_match === "no") {
-            conflicts.push(`Cuisine mood mismatch: ${rec.cravings_reasoning}`)
-          }
-
-          return {
-            id: r.place_id,
-            name: r.name,
-            cuisine: r.cuisine_types[0] ?? "Restaurant",
-            priceRange: r.price_range_rm ?? "Price N/A",
-            distance: `${r.distance_km.toFixed(1)} km`,
-            halal_status: r.halal_status,
-            vegetarian_status: r.vegetarian_status,
-            fitScore,
-            reasoning: combinedReasoning,
-            dietary_fit: rec.dietary_fit,
-            cravings_match: rec.cravings_match,
-            conflicts,
-            votes: 0,
-            isAlternative: r.distance_km > 3,
-          }
-        })
-      )
-    } catch (err) {
-      console.error("Failed to get recommendations:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleBack = () => {
-    setCurrentStep((prev) => Math.max(1, prev - 1))
-  }
-
-  const handleStartOver = () => {
-    setCurrentStep(1)
-    setGroupData({
-      name: "",
-      members: [],
-    })
-    setCravingData({
-      freeText: "",
-      cuisineMood: [],
-      location: "",
-    })
-    setRecommendations([])
-  }
-
+export default function LandingPage() {
   return (
-    <main className="min-h-screen py-8 px-4">
-      <div className="max-w-lg mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">
+    <main className="min-h-screen flex flex-col items-center justify-center py-12 px-6 relative overflow-hidden">
+      <img
+        src="/avocado.svg"
+        alt="" aria-hidden
+        className="absolute -top-6 -left-6 w-44 h-44 opacity-75 -rotate-[15deg] pointer-events-none select-none"
+      />
+      <img
+        src="/tomatoes.svg"
+        alt="" aria-hidden
+        className="absolute -top-2 -right-6 w-36 h-36 opacity-70 rotate-[20deg] pointer-events-none select-none"
+      />
+      <img
+        src="/pancakes.svg"
+        alt="" aria-hidden
+        className="absolute -bottom-6 -left-8 w-48 h-48 opacity-70 rotate-[10deg] pointer-events-none select-none"
+      />
+      <img
+        src="/bread.svg"
+        alt="" aria-hidden
+        className="absolute -bottom-4 -right-6 w-44 h-44 opacity-70 -rotate-[20deg] pointer-events-none select-none"
+      />
+
+      <img
+        src="/banana.svg"
+        alt="" aria-hidden
+        className="absolute top-1/3 -left-10 w-28 h-28 opacity-55 rotate-[35deg] pointer-events-none select-none"
+      />
+      <img
+        src="/roast.svg"
+        alt="" aria-hidden
+        className="absolute top-1/2 -right-8 w-32 h-32 opacity-55 -rotate-[25deg] pointer-events-none select-none"
+      />
+
+      <div className="relative z-10 w-full mx-auto text-center space-y-8">
+        <div className="flex justify-center">
+          <Image
+            src="/bb-logo.png"
+            alt="BB Where to Makan"
+            width={150}
+            height={150}
+            className="object-contain drop-shadow-md"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <h1 className="text-6xl font-bold text-foreground leading-[1.1] tracking-tight">
             Where to Makan?
           </h1>
-          <p className="text-muted-foreground">
-            Find the perfect restaurant for your group
+          <p className="text-lg text-muted-foreground">
+            Restaurant Recommendations for Big Backs, By Big Backs ♡
           </p>
         </div>
 
-        {/* Step Indicator */}
-        <StepIndicator currentStep={currentStep} steps={steps} />
+        <Link href="/group/new" className="block max-w-sm mx-auto">
+          <Button size="lg" className="w-full text-base rounded-full shadow-md">
+            Find somewhere to makan →
+          </Button>
+        </Link>
 
-        {/* Main Content Card */}
-        <Card className="shadow-lg">
-          <CardContent className="p-6">
-            {currentStep === 1 && (
-              <GroupSetup
-                groupData={groupData}
-                setGroupData={setGroupData}
-                onNext={handleGroupNext}
-              />
-            )}
-
-            {currentStep === 2 && (
-              <AddMembers
-                groupData={groupData}
-                setGroupData={setGroupData}
-                onNext={handleMembersNext}
-                onBack={handleBack}
-              />
-            )}
-
-            {currentStep === 3 && (
-              <CravingInput
-                cravingData={cravingData}
-                setCravingData={setCravingData}
-                onNext={handleCravingNext}
-                onBack={handleBack}
-              />
-            )}
-
-            {currentStep === 4 && (
-              <ResultsDisplay
-                recommendations={recommendations}
-                groupName={groupData.name || "your group"}
-                participantCount={groupData.members.length}
-                members={groupData.members.map((m) => ({
-                  name: m.name,
-                  dietaryRestrictions: m.dietaryRestrictions,
-                }))}
-                onBack={handleBack}
-                onStartOver={handleStartOver}
-                isLoading={isLoading}
-                showVoting={true}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground">Powered by AI - Group dining decisions made easy</p>
+        <p className="text-xs text-muted-foreground">
+          Powered by AI — group dining decisions made easy
+        </p>
       </div>
     </main>
   )

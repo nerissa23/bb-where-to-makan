@@ -211,6 +211,11 @@ class PlacesService:
         request: PlacesRequest,
         halal_required: bool = False,
         vegetarian_required: bool = False,
+        no_pork_required: bool = False,
+        no_beef_required: bool = False,
+        no_seafood_required: bool = False,
+        gluten_free_required: bool = False,
+        dairy_free_required: bool = False,
     ) -> list[Recommendation]:
 
         cache_key = self._key(request)
@@ -225,7 +230,10 @@ class PlacesService:
                 vegetarian_required,
             )
             return rank_with_ai(
-                filtered[:20], request, halal_required, vegetarian_required
+                filtered[:10], request,
+                halal_required, vegetarian_required,
+                no_pork_required, no_beef_required,
+                no_seafood_required, gluten_free_required, dairy_free_required,
             )
 
         print("🔍 Fetching from Places API...")
@@ -238,7 +246,8 @@ class PlacesService:
             for r in (self._normalise(raw_r, lat, lng) for raw_r in raw)
             if r is not None
         ]
-        restaurants = enhance_dietary_status(restaurants)
+        if halal_required or vegetarian_required:
+            restaurants = enhance_dietary_status(restaurants)
         self._set_cache(cache_key, restaurants)
 
         candidates = self._filter(
@@ -250,7 +259,10 @@ class PlacesService:
 
         logger.info(f"Returning {len(candidates)} candidates after filtering")
         return rank_with_ai(
-            candidates[:20], request, halal_required, vegetarian_required
+            candidates[:10], request,
+            halal_required, vegetarian_required,
+            no_pork_required, no_beef_required,
+            no_seafood_required, gluten_free_required, dairy_free_required,
         )
 
 

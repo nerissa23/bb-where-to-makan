@@ -21,6 +21,10 @@ NOT_HALAL_NAME_KEYWORDS = [
     "pork", "babi", "char siu", "roast pig",
     "bacon", "lard", "beer", "wine", "bar ",
     "brewery", "taproom", "tavern",
+    # Vietnamese cuisine — pork used extensively
+    "viet", "vietnamese", "pho ", "bun bo", "banh mi", "banh cuon",
+    # Chinese non-halal specialists
+    "dim sum", "roast duck", "siu yuk", "roast pork", "wonton",
 ]
 
 # cuisine/place types from google places indicating non-halal

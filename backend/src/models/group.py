@@ -7,7 +7,16 @@ class DietaryRestriction(str, Enum):
     VEGETARIAN = "vegetarian"
     VEGAN = "vegan"
     NO_PORK = "no_pork"
+    NO_BEEF = "no_beef"
     NO_SEAFOOD = "no_seafood"
+    GLUTEN_FREE = "gluten_free"
+    DAIRY_FREE = "dairy_free"
+
+
+class GroupStatus(str, Enum):
+    OPEN = "open"
+    LOCKED = "locked"
+    DONE = "done"
 
 
 class Member(BaseModel):
@@ -16,9 +25,14 @@ class Member(BaseModel):
     budget_rm: float
 
 
-class Group(BaseModel):
+class CreateGroupRequest(BaseModel):
     group_name: str
-    members: list[Member]
+
+
+class AddMemberRequest(BaseModel):
+    name: str
+    dietary: list[DietaryRestriction] = []
+    budget_rm: float
 
 
 class CravingRequest(BaseModel):
@@ -35,3 +49,8 @@ class PlacesRequest(BaseModel):
     cuisine_mood: list[str] = []
     meal_time: str
     radius_metres: int = 3000
+
+
+class VoteRequest(BaseModel):
+    restaurant_id: str
+    delta: int  # +1 to vote, -1 to unvote
