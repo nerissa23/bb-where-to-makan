@@ -21,6 +21,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # 3. copy entire application code
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 COPY src/ ./src/
 COPY data/ ./data/
 
