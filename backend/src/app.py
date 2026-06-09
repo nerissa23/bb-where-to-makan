@@ -2,10 +2,10 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.config import load_env
 from src.routers import groups, recommendations
-from dotenv import load_dotenv
 
-load_dotenv()
+load_env()
 
 app = FastAPI()
 
@@ -19,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# register routers
 app.include_router(groups.router)
 app.include_router(recommendations.router)
 
