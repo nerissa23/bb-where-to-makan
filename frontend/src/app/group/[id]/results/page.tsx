@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { ResultsDisplay, type Recommendation } from "@/components/results-display"
 import { getGroup, type GroupState, type BackendRecommendation } from "@/lib/api"
+import { getMemberName } from "@/lib/member-session"
 import { AppHeader } from "@/components/app-header"
 import { FoodDecorations } from "@/components/food-decorations"
 
@@ -44,6 +45,11 @@ export default function ResultsPage() {
   const [group, setGroup] = useState<GroupState | null>(null)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [isDone, setIsDone] = useState(false)
+  const [memberName, setMemberName] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMemberName(getMemberName(id))
+  }, [id])
 
   const poll = useCallback(async () => {
     try {
@@ -100,7 +106,22 @@ export default function ResultsPage() {
               isLoading={false}
               showVoting={true}
               groupId={id}
+              memberName={memberName}
               serverVotes={group?.votes ?? {}}
+              memberVotes={group?.member_votes ?? {}}
+              onVotesChange={(votes, userVotes) => {
+                setGroup((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        votes,
+                        member_votes: memberName
+                          ? { ...prev.member_votes, [memberName]: userVotes }
+                          : prev.member_votes,
+                      }
+                    : prev
+                )
+              }}
             />
           </CardContent>
         </Card>

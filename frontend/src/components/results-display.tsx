@@ -58,7 +58,10 @@ interface ResultsDisplayProps {
   isLoading: boolean
   showVoting?: boolean
   groupId?: string
+  memberName?: string | null
   serverVotes?: Record<string, number>
+  memberVotes?: Record<string, string[]>
+  onVotesChange?: (votes: Record<string, number>, userVotes: string[]) => void
 }
 
 export function ResultsDisplay({
@@ -71,10 +74,15 @@ export function ResultsDisplay({
   isLoading,
   showVoting = true,
   groupId,
+  memberName,
   serverVotes = {},
+  memberVotes = {},
+  onVotesChange,
 }: ResultsDisplayProps) {
   const [recommendations, setRecommendations] = useState(initialRecommendations)
+  const [voteCounts, setVoteCounts] = useState(serverVotes)
   const [votedItems, setVotedItems] = useState<Set<string>>(new Set())
+  const [isVoting, setIsVoting] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [budgetFilter, setBudgetFilter] = useState([50])
   const [distanceFilter, setDistanceFilter] = useState([5])
@@ -84,18 +92,60 @@ export function ResultsDisplay({
     setRecommendations(initialRecommendations)
   }, [initialRecommendations])
 
-  const handleVote = useCallback((id: string) => {
-    const isVoted = votedItems.has(id)
-    const delta = isVoted ? -1 : 1
+  useEffect(() => {
+    setVoteCounts(serverVotes)
+  }, [serverVotes])
+
+  useEffect(() => {
+    if (!memberName || isVoting) return
+    setVotedItems(new Set(memberVotes[memberName] ?? []))
+  }, [memberName, memberVotes, isVoting])
+
+  const handleVote = useCallback(async (id: string) => {
+    if (!groupId || !memberName || isVoting) return
+
+    setIsVoting(true)
+    let delta = 1
     setVotedItems((prev) => {
+      const isVoted = prev.has(id)
+      delta = isVoted ? -1 : 1
       const next = new Set(prev)
-      isVoted ? next.delete(id) : next.add(id)
+      if (isVoted) next.delete(id)
+      else next.add(id)
       return next
     })
-    if (groupId) castVote(groupId, id, delta)
-  }, [votedItems, groupId])
+    setVoteCounts((prev) => ({
+      ...prev,
+      [id]: Math.max(0, (prev[id] ?? 0) + delta),
+    }))
 
-  const getVoteCount = (rec: Recommendation) => serverVotes[rec.id] ?? 0
+    try {
+      const result = await castVote(groupId, id, memberName)
+      setVoteCounts(result.votes)
+      setVotedItems(new Set(result.user_votes))
+      onVotesChange?.(result.votes, result.user_votes)
+    } catch {
+      setVoteCounts(serverVotes)
+      if (memberName) setVotedItems(new Set(memberVotes[memberName] ?? []))
+    } finally {
+      setIsVoting(false)
+    }
+  }, [groupId, memberName, memberVotes, onVotesChange, serverVotes, isVoting])
+
+  const getVoteCount = (rec: Recommendation) => voteCounts[rec.id] ?? 0
+
+  const compareByVotes = (a: Recommendation, b: Recommendation) => {
+    const voteDiff = getVoteCount(b) - getVoteCount(a)
+    if (voteDiff !== 0) return voteDiff
+    return (b.fitScore ?? 0) - (a.fitScore ?? 0)
+  }
+
+  const getVoteRank = (rec: Recommendation) => {
+    const count = getVoteCount(rec)
+    if (count === 0) return null
+    const strictlyHigher = recommendations.filter((r) => getVoteCount(r) > count).length
+    return strictlyHigher + 1
+  }
 
   if (isLoading) {
     return (
@@ -117,7 +167,14 @@ export function ResultsDisplay({
     )
   }
 
-  const sortedRecommendations = [...recommendations].sort((a, b) => getVoteCount(b) - getVoteCount(a))
+  const sortedRecommendations = [...recommendations].sort(compareByVotes)
+  const votedRestaurants = sortedRecommendations.filter((r) => getVoteCount(r) > 0)
+  const topVoteCount = votedRestaurants.length > 0 ? getVoteCount(votedRestaurants[0]) : 0
+  const topChoices = votedRestaurants.filter((r) => getVoteCount(r) === topVoteCount)
+  const hasClearWinner = topChoices.length === 1
+  const isTopChoice = (rec: Recommendation) =>
+    topVoteCount > 0 && topChoices.some((choice) => choice.id === rec.id)
+
   const filteredRecommendations = sortedRecommendations.filter((r) => {
     const dist = parseFloat(r.distance)
     const priceLow = parsePriceLow(r.priceRange)
@@ -189,12 +246,20 @@ export function ResultsDisplay({
         )}
       </div>
 
-      {showVoting && Object.keys(serverVotes).length > 0 && (
+      {showVoting && topVoteCount > 0 && (
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Group&apos;s Top Choice:</span>
-              <Badge className="bg-primary">{sortedRecommendations[0]?.name} ({getVoteCount(sortedRecommendations[0])} votes)</Badge>
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <span className="font-medium">
+                {hasClearWinner ? "Group's Top Choice:" : "Group Votes (tied):"}
+              </span>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                {topChoices.map((rec) => (
+                  <Badge key={rec.id} className="bg-primary">
+                    {rec.name} ({getVoteCount(rec)} {getVoteCount(rec) === 1 ? "vote" : "votes"})
+                  </Badge>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -207,12 +272,12 @@ export function ResultsDisplay({
           </p>
         )}
         {topPicks.map((rec, index) => (
-          <Card key={rec.id} className={`overflow-hidden transition-all hover:shadow-md ${index === 0 ? "border-primary border-2" : ""}`}>
+          <Card key={rec.id} className={`overflow-hidden transition-all hover:shadow-md ${isTopChoice(rec) ? "border-primary border-2" : ""}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${index === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                    {index + 1}
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${isTopChoice(rec) ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    {getVoteRank(rec) ?? index + 1}
                   </div>
                   <div>
                     <CardTitle className="text-lg">{rec.name}</CardTitle>

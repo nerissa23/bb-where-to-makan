@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Link2, Copy, Check, Users, Loader2 } from "lucide-react"
 import { getGroup, addMember, type GroupState } from "@/lib/api"
+import { saveMemberName } from "@/lib/member-session"
 import { MemberPreferencesForm } from "@/components/member-preferences-form"
 import { AppHeader } from "@/components/app-header"
 import { FoodDecorations } from "@/components/food-decorations"
@@ -50,6 +51,7 @@ export default function LobbyPage() {
     setError(null)
     try {
       await addMember(id, data)
+      saveMemberName(id, data.name)
       setPrefsSaved(true)
       fetchGroup()
     } catch (err) {
