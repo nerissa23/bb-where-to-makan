@@ -22,8 +22,10 @@ def get_group(group_id: str):
 @router.post("/{group_id}/vote")
 def cast_vote(group_id: str, body: VoteRequest):
     with get_session() as session:
-        group_repo.cast_vote(session, group_id, body.restaurant_id, body.delta)
-    return {"ok": True}
+        result = group_repo.cast_vote(
+            session, group_id, body.restaurant_id, body.member_name
+        )
+    return {"ok": True, **result}
 
 
 @router.post("/{group_id}/members")

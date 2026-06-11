@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 import { getGroup, addMember } from "@/lib/api"
+import { saveMemberName } from "@/lib/member-session"
 import { MemberPreferencesForm } from "@/components/member-preferences-form"
 import { AppHeader } from "@/components/app-header"
 import { FoodDecorations } from "@/components/food-decorations"
@@ -38,6 +39,7 @@ export default function JoinPage() {
     setError(null)
     try {
       await addMember(id, data)
+      saveMemberName(id, data.name)
       router.push(`/group/${id}/waiting`)
     } catch (err) {
       setError("Failed to join group. Please try again.")

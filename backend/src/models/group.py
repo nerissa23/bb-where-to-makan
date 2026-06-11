@@ -53,4 +53,4 @@ class PlacesRequest(BaseModel):
 
 class VoteRequest(BaseModel):
     restaurant_id: str
-    delta: int  # +1 to vote, -1 to unvote
+    member_name: str

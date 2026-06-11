@@ -13,6 +13,7 @@ export interface GroupState {
   members: BackendMember[]
   results: BackendRecommendation[] | null
   votes: Record<string, number>
+  member_votes: Record<string, string[]>
 }
 
 export interface BackendCravingRequest {
@@ -100,16 +101,27 @@ export async function getRecommendations(
   return res.json()
 }
 
+export interface VoteResult {
+  ok: boolean
+  votes: Record<string, number>
+  user_votes: string[]
+}
+
 export async function castVote(
   groupId: string,
   restaurantId: string,
-  delta: number
-): Promise<void> {
-  await fetch(`${BASE_URL}/groups/${groupId}/vote`, {
+  memberName: string
+): Promise<VoteResult> {
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ restaurant_id: restaurantId, delta }),
+    body: JSON.stringify({ restaurant_id: restaurantId, member_name: memberName }),
   })
+  if (!res.ok) {
+    const body = await res.text().catch(() => "(no body)")
+    throw new Error(`Failed to cast vote: ${res.status} ${body}`)
+  }
+  return res.json()
 }
 
 export async function getResults(
